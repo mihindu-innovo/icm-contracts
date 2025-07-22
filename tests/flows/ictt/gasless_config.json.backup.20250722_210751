@@ -1,0 +1,65 @@
+{
+  "avaCloudRelayerAccount": "0x56112666e55fc1e735439c5c6cd34f6a4cc65e5e",
+  "avaCloudRegistryContract": "0x1706b09874052916EC4330d30EeE74b902F354AC",
+  "avaCloudTeleporterContract": "0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf",
+  "avaCloudForwarder": "0xf780e046ce91a126617847fd9ffee022b37e9ab7",
+  "erc20HomeAddress": "0xF1313Cd69F8e5Be1891a91Be93e0634694CEfb59",
+  "erc20RemoteAddress": "0xA0ba99966e64A0954988Ba90F308beEA72fc998A",
+  "erc20TokenAddress": "0x5425890298aed601595a70ab815c96711a31bc65",
+  "avaCloudRpcUrl": "https://gas-relayer.avax.network/innovomark/testnet/rpc",
+  "avaCloudAuth": {
+    "username": "innovomark_testnet",
+    "password": "PVY8wZa10O9nrP3mfB"
+  },
+  "avaCloudDomain": "innovomark",
+  "avaCloudVersion": "1",
+  "avaCloudRequestType": "Message",
+  "avaCloudRequestSuffix": "EMYIVHVJOTQUBEJLHAJCZLQ",
+  "homeRpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+  "remoteRpcUrl": "https://subnets.avax.network/innovomark/testnet/rpc",
+  "cChainBlockchainID": "0x7fc93d85c6d62c5b2ac0b519c87010ea5294012d1e407030d6acd0021cac10d5",
+  "innovomarkBlockchainID": "0xeaa43ceb6e928c745155585de433f487399081a800080775b0fce622b113fc95",
+  "networkConfig": {
+    "home": {
+      "name": "Avalanche C-Chain Testnet",
+      "chainId": 43113,
+      "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+      "blockExplorer": "https://testnet.snowtrace.io"
+    },
+    "remote": {
+      "name": "Innovo Subnet Testnet",
+      "chainId": 54414,
+      "rpcUrl": "https://subnets.avax.network/innovomark/testnet/rpc",
+      "blockExplorer": "https://testnet.innovomarkets.com"
+    }
+  },
+  "contracts": {
+    "home": {
+      "erc20Home": "0xF1313Cd69F8e5Be1891a91Be93e0634694CEfb59",
+      "erc20Token": "0x5425890298aed601595a70ab815c96711a31bc65",
+      "teleporterMessenger": "0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf"
+    },
+    "remote": {
+      "erc20Remote": "0xA0ba99966e64A0954988Ba90F308beEA72fc998A",
+      "erc20Token": "0xA0ba99966e64A0954988Ba90F308beEA72fc998A",
+      "forwarder": "0xf780e046ce91a126617847fd9ffee022b37e9ab7"
+    }
+  },
+  "gaslessConfig": {
+    "relayerUrl": "https://gas-relayer.avax.network/innovomark/testnet/rpc",
+    "auth": {
+      "username": "innovomark_testnet",
+      "password": "PVY8wZa10O9nrP3mfB"
+    },
+    "domain": "innovomark",
+    "version": "1",
+    "requestType": "Message",
+    "requestSuffix": "EMYIVHVJOTQUBEJLHAJCZLQ"
+  },
+  "deploymentInfo": {
+    "deployer": "0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8",
+    "deploymentDate": "2024-01-01T00:00:00Z",
+    "version": "1.0.0",
+    "environment": "testnet"
+  }
+}

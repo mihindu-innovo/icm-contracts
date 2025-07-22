@@ -1,0 +1,30 @@
+{
+  "name": "gasless-bridge-test",
+  "version": "1.0.0",
+  "description": "Gasless ERC20 bridge test for ICTT contracts",
+  "main": "gasless_bridge_client.js",
+  "scripts": {
+    "test": "node gasless_bridge_client.js",
+    "start": "node gasless_bridge_client.js"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "ethereum",
+    "avalanche",
+    "gasless",
+    "bridge",
+    "erc20",
+    "ictt"
+  ],
+  "author": "Ava Labs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
