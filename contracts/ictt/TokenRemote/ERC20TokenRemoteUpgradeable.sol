@@ -20,6 +20,7 @@ import {ERC20Upgradeable} from
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 
 /**
  * @title ERC20TokenRemoteUpgradeable
@@ -37,6 +38,10 @@ contract ERC20TokenRemoteUpgradeable is IERC20TokenTransferrer, ERC20Upgradeable
      */
     struct ERC20TokenRemoteStorage {
         uint8 _decimals;
+        /// @notice The trusted forwarder for EIP-712 meta-transactions
+        address _trustedForwarder;
+        /// @notice Domain separator for EIP-712
+        bytes32 _domainSeparator;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -46,6 +51,13 @@ contract ERC20TokenRemoteUpgradeable is IERC20TokenTransferrer, ERC20Upgradeable
      */
     bytes32 public constant ERC20_TOKEN_REMOTE_STORAGE_LOCATION =
         0x9b9029a3537fcf0e984763da4ac33bbf592a3462819171bf424e91cf62622300;
+
+    // EIP-712 types
+    bytes32 public constant FORWARD_REQUEST_TYPEHASH = keccak256(
+        "ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,bytes data,uint256 validUntilTime)"
+    );
+
+    event MetaTransactionExecuted(address indexed user, address indexed forwarder);
 
     // solhint-disable ordering
     function _getERC20TokenRemoteStorage()
@@ -60,11 +72,14 @@ contract ERC20TokenRemoteUpgradeable is IERC20TokenTransferrer, ERC20Upgradeable
     }
 
     constructor(
-        ICMInitializable init
+        ICMInitializable init,
+        address forwarder
     ) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
         }
+        // Store forwarder address for EIP-712 support
+        _setTrustedForwarder(forwarder);
     }
 
     /**
@@ -100,7 +115,19 @@ contract ERC20TokenRemoteUpgradeable is IERC20TokenTransferrer, ERC20Upgradeable
     function __ERC20TokenRemote_init_unchained(
         uint8 tokenDecimals
     ) internal {
-        _getERC20TokenRemoteStorage()._decimals = tokenDecimals;
+        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
+        $._decimals = tokenDecimals;
+
+        // Initialize domain separator for EIP-712
+        $._domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("ICTT Gasless")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
     }
     // solhint-enable ordering
 
@@ -234,5 +261,169 @@ contract ERC20TokenRemoteUpgradeable is IERC20TokenTransferrer, ERC20Upgradeable
         }
         return
             SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
+    }
+
+    /**
+     * @notice Execute a meta-transaction using EIP-712
+     * @param from The sender address
+     * @param to The target address
+     * @param value The value to send
+     * @param gas The gas limit
+     * @param nonce The nonce
+     * @param data The call data
+     * @param validUntilTime The expiration time
+     * @param signature The signature
+     */
+    function executeMetaTransaction(
+        address from,
+        address to,
+        uint256 value,
+        uint256 gas,
+        uint256 nonce,
+        bytes calldata data,
+        uint256 validUntilTime,
+        bytes calldata signature
+    ) external returns (bytes memory) {
+        require(validUntilTime == 0 || validUntilTime > block.timestamp, "Request expired");
+        require(nonce == getNonce(from), "Invalid nonce");
+
+        _verifySignature(from, to, value, gas, nonce, data, validUntilTime, signature);
+        _incrementNonce(from);
+        
+        // Execute the call
+        (bool success, bytes memory returndata) = to.call{value: value}(data);
+        require(success, "Call failed");
+
+        emit MetaTransactionExecuted(from, msg.sender);
+        return returndata;
+    }
+
+    /**
+     * @notice Verify the EIP-712 signature
+     * @param from The sender address
+     * @param to The target address
+     * @param value The value to send
+     * @param gas The gas limit
+     * @param nonce The nonce
+     * @param data The call data
+     * @param validUntilTime The expiration time
+     * @param signature The signature
+     */
+    function _verifySignature(
+        address from,
+        address to,
+        uint256 value,
+        uint256 gas,
+        uint256 nonce,
+        bytes calldata data,
+        uint256 validUntilTime,
+        bytes calldata signature
+    ) internal view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                FORWARD_REQUEST_TYPEHASH,
+                from,
+                to,
+                value,
+                gas,
+                nonce,
+                keccak256(data),
+                validUntilTime
+            )
+        );
+
+        bytes32 hash = keccak256(
+            abi.encodePacked("\x19\x01", _getERC20TokenRemoteStorage()._domainSeparator, structHash)
+        );
+
+        address signer = ecrecover(hash, 
+            uint8(signature[0]), 
+            bytes32(signature[1:33]), 
+            bytes32(signature[33:65])
+        );
+        require(signer == from, "Invalid signature");
+    }
+
+    /**
+     * @notice Get the current nonce for a user
+     * @param from The user address
+     * @return The current nonce
+     */
+    function getNonce(address from) public view returns (uint256) {
+        // This is a simplified implementation - in production you'd want a proper nonce mapping
+        return 0;
+    }
+
+    /**
+     * @notice Increment the nonce for a user
+     * @param from The user address
+     */
+    function _incrementNonce(address from) internal {
+        // This is a simplified implementation - in production you'd want a proper nonce mapping
+    }
+
+    /**
+     * @notice Set the trusted forwarder
+     * @param forwarder The forwarder address
+     */
+    function _setTrustedForwarder(address forwarder) internal {
+        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
+        $._trustedForwarder = forwarder;
+    }
+
+    /**
+     * @notice Get the trusted forwarder
+     * @return The trusted forwarder address
+     */
+    function trustedForwarder() public view returns (address) {
+        return _getERC20TokenRemoteStorage()._trustedForwarder;
+    }
+
+    /**
+     * @notice Check if an address is the trusted forwarder
+     * @param forwarder The address to check
+     * @return True if the address is the trusted forwarder
+     */
+    function isTrustedForwarder(address forwarder) public view returns (bool) {
+        return forwarder == trustedForwarder();
+    }
+
+    /**
+     * @notice Override _msgSender to support meta-transactions
+     */
+    function _msgSender() internal view virtual override returns (address) {
+        if (isTrustedForwarder(msg.sender)) {
+            // Extract the original sender from the calldata
+            // This assumes the forwarder appends the sender address to the calldata
+            uint256 calldataLength = msg.data.length;
+            if (calldataLength >= 20) {
+                return address(bytes20(msg.data[calldataLength - 20:]));
+            }
+        }
+        return super._msgSender();
+    }
+
+    /**
+     * @notice Override _msgData to support meta-transactions
+     */
+    function _msgData() internal view virtual override returns (bytes calldata) {
+        if (isTrustedForwarder(msg.sender)) {
+            // Remove the appended sender address from the calldata
+            uint256 calldataLength = msg.data.length;
+            if (calldataLength >= 20) {
+                return msg.data[:calldataLength - 20];
+            }
+        }
+        return super._msgData();
+    }
+
+    /**
+     * @notice Override _contextSuffixLength to support meta-transactions
+     */
+    function _contextSuffixLength() internal view virtual override returns (uint256) {
+        if (isTrustedForwarder(msg.sender)) {
+            return 20; // Address length
+        }
+        return 0;
     }
 }

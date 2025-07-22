@@ -19,8 +19,9 @@ contract ERC20TokenHome is ERC20TokenHomeUpgradeable {
         address teleporterManager,
         uint256 minTeleporterVersion,
         address tokenAddress,
-        uint8 tokenDecimals
-    ) ERC20TokenHomeUpgradeable(ICMInitializable.Allowed) {
+        uint8 tokenDecimals,
+        address forwarder
+    ) ERC20TokenHomeUpgradeable(ICMInitializable.Allowed, forwarder) {
         initialize(
             teleporterRegistryAddress,
             teleporterManager,

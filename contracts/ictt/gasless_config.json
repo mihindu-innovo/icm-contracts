@@ -1,0 +1,18 @@
+{
+  "avaCloudRelayerAccount": "0x56112666e55fc1e735439c5c6cd34f6a4cc65e5e",
+  "avaCloudRegistryContract": "0x1706b09874052916EC4330d30EeE74b902F354AC",
+  "avaCloudTeleporterContract": "0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf",
+  "avaCloudForwarder": "0xadb1cc52d50089a57c797685ea085e5cd2642c82",
+  "erc20HomeAddress": "0x93040F3290AE042e654Fac8d8412Fe4856056Cf4",
+  "erc20RemoteAddress": "0x65FE9B6E41BACc5F287DE88C1490c3933B77d511",
+  "erc20TokenAddress": "0x5425890298aed601595a70ab815c96711a31bc65",
+  "avaCloudRpcUrl": "https://gas-relayer.avax.network/innovomark/testnet/rpc",
+  "avaCloudAuth": {
+    "username": "innovomark_testnet",
+    "password": "PVY8wZa10O9nrP3mfB"
+  },
+  "avaCloudDomain": "innovomark",
+  "avaCloudVersion": "1",
+  "avaCloudRequestType": "Message",
+  "avaCloudRequestSuffix": "EMYIVHVJOTQUBEJLHAJCZLQ"
+}

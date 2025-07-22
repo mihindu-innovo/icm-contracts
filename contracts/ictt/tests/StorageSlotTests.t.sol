@@ -17,7 +17,7 @@ contract StorageSlotTest is Test {
     function testERC20TokenHomeStorageSlot() public {
         bytes32 slot = _erc7201StorageSlot("ERC20TokenHome");
         assertEq(
-            new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed)
+            new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed, address(0))
                 .ERC20_TOKEN_HOME_STORAGE_LOCATION(),
             slot
         );
@@ -26,7 +26,7 @@ contract StorageSlotTest is Test {
     function testERC20TokenRemoteStorageSlot() public {
         bytes32 slot = _erc7201StorageSlot("ERC20TokenRemote");
         assertEq(
-            new ERC20TokenRemoteUpgradeable(ICMInitializable.Disallowed)
+            new ERC20TokenRemoteUpgradeable(ICMInitializable.Disallowed, address(0))
                 .ERC20_TOKEN_REMOTE_STORAGE_LOCATION(),
             slot
         );
@@ -53,7 +53,7 @@ contract StorageSlotTest is Test {
     function testTokenHomeStorageSlot() public {
         bytes32 slot = _erc7201StorageSlot("TokenHome");
         assertEq(
-            new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed).TOKEN_HOME_STORAGE_LOCATION(),
+            new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed, address(0)).TOKEN_HOME_STORAGE_LOCATION(),
             slot
         );
     }

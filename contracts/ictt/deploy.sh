@@ -23,6 +23,21 @@ BLOCKCHAIN_ID_HOME="0x7fc93d85c6d62c5b2ac0b519c87010ea5294012d1e407030d6acd0021c
 BLOCKCHAIN_ID_REMOTE="0xeaa43ceb6e928c745155585de433f487399081a800080775b0fce622b113fc95"
 ERC20_TOKEN_ADDRESS="0x5425890298aed601595a70ab815c96711a31bc65"  # Replace with your actual ERC20 token address
 
+# ERC2771 Configuration - AvaCloud Relayer Infrastructure
+# AvaCloud provides a unified relayer that handles both home and remote chains
+AVACLOUD_RELAYER_ACCOUNT="0x56112666e55fc1e735439c5c6cd34f6a4cc65e5e"  # Relayer account that pays for gas
+AVACLOUD_REGISTRY_CONTRACT="0x1706b09874052916EC4330d30EeE74b902F354AC"  # Registry contract
+AVACLOUD_TELEPORTER_CONTRACT="0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf"  # Teleporter contract (handles ICTT messaging)
+
+# TODO: Need to get the actual ERC2771Forwarder address from AvaCloud
+# The Teleporter contract is NOT the ERC2771 forwarder - it handles ICTT cross-chain messaging
+# The relayer account is NOT the forwarder - it pays for gas
+AVACLOUD_FORWARDER="0xf780e046ce91a126617847fd9ffee022b37e9ab7"  # Replace with actual ERC2771Forwarder address
+
+# Deployment Mode
+# Set to "erc2771" to deploy ERC2771-compatible contracts, "standard" for original contracts
+DEPLOYMENT_MODE="erc2771"  # Options: "standard" or "erc2771"
+
 # Script directory
 SCRIPT_DIR=$(dirname "$0")
 LOG_FILE="$SCRIPT_DIR/deploy_log.txt"
@@ -108,6 +123,21 @@ validate_config() {
         validate_address "$ERC20_TOKEN_ADDRESS" "ERC20_TOKEN_ADDRESS" || errors=$((errors + 1))
     fi
     
+    # Validate ERC2771 configuration if using ERC2771 mode
+    if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+        validate_address "$AVACLOUD_RELAYER_ACCOUNT" "AVACLOUD_RELAYER_ACCOUNT" || errors=$((errors + 1))
+        validate_address "$AVACLOUD_REGISTRY_CONTRACT" "AVACLOUD_REGISTRY_CONTRACT" || errors=$((errors + 1))
+        validate_address "$AVACLOUD_TELEPORTER_CONTRACT" "AVACLOUD_TELEPORTER_CONTRACT" || errors=$((errors + 1))
+        
+        # Check if forwarder address is set (not placeholder)
+        if [[ "$AVACLOUD_FORWARDER" == "0x0000000000000000000000000000000000000000" ]]; then
+            error "Please set the actual ERC2771Forwarder address from AvaCloud"
+            errors=$((errors + 1))
+        else
+            validate_address "$AVACLOUD_FORWARDER" "AVACLOUD_FORWARDER" || errors=$((errors + 1))
+        fi
+    fi
+    
     if [[ $errors -gt 0 ]]; then
         error "Configuration validation failed with $errors error(s)"
         return 1
@@ -128,6 +158,13 @@ print_config() {
     echo "   Blockchain ID Remote: $BLOCKCHAIN_ID_REMOTE"
     echo "   ERC20 Token: $ERC20_TOKEN_ADDRESS"
     echo "   Private Key: ${PRIVATE_KEY:0:6}...${PRIVATE_KEY: -4}"
+    echo "   Deployment Mode: $DEPLOYMENT_MODE"
+    if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+        echo "   AvaCloud Relayer Account: $AVACLOUD_RELAYER_ACCOUNT"
+        echo "   AvaCloud Registry Contract: $AVACLOUD_REGISTRY_CONTRACT"
+        echo "   AvaCloud Teleporter Contract: $AVACLOUD_TELEPORTER_CONTRACT"
+        echo "   AvaCloud ERC2771Forwarder: $AVACLOUD_FORWARDER"
+    fi
     echo ""
 }
 
@@ -219,14 +256,30 @@ deploy_erc20_home() {
     log "=========================================================================="
     log "Deploying ERC20Home on Home"
     
-    local command="forge create --rpc-url $RPC_URL_HOME --private-key $PRIVATE_KEY \
-        contracts/ictt/TokenHome/ERC20TokenHome.sol:ERC20TokenHome \
-        --constructor-args \
-        \"$REG_HOME\" \
-        \"$MNG\" \
-        \"1\" \
-        \"$ERC20_TOKEN_ADDRESS\" \
-        \"6\""
+    local command
+    if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+        log "Deploying ERC2771-compatible ERC20Home with AvaCloud forwarder"
+        command="forge create --rpc-url $RPC_URL_HOME --private-key $PRIVATE_KEY \
+            contracts/ictt/TokenHome/ERC20TokenHome.sol:ERC20TokenHome \
+            --constructor-args \
+            \"$REG_HOME\" \
+            \"$MNG\" \
+            \"1\" \
+            \"$ERC20_TOKEN_ADDRESS\" \
+            \"6\" \
+            \"$AVACLOUD_FORWARDER\""
+    else
+        log "Deploying standard ERC20Home (with zero forwarder)"
+        command="forge create --rpc-url $RPC_URL_HOME --private-key $PRIVATE_KEY \
+            contracts/ictt/TokenHome/ERC20TokenHome.sol:ERC20TokenHome \
+            --constructor-args \
+            \"$REG_HOME\" \
+            \"$MNG\" \
+            \"1\" \
+            \"$ERC20_TOKEN_ADDRESS\" \
+            \"6\" \
+            \"0x0000000000000000000000000000000000000000\""
+    fi
     
     local output
     output=$(execute_forge "$command" "ERC20Home deployment")
@@ -235,6 +288,11 @@ deploy_erc20_home() {
     contract_address=$(extract_address "$output")
     local tx_hash
     tx_hash=$(extract_tx_hash "$output")
+    
+    if [[ -z "$contract_address" ]]; then
+        error "ERC20Home deployment failed - could not extract contract address"
+        return 1
+    fi
     
     log "ERC20 Home Contract Address: $contract_address"
     log "ERC20 Home Transaction Hash: $tx_hash"
@@ -255,13 +313,28 @@ deploy_erc20_remote() {
     # Format: (address,address,uint256,bytes32,address,uint8)
     local settings="($REG_REMOTE,$MNG,1,$BLOCKCHAIN_ID_HOME,$ERC20_HOME_ADDRESS,6)"
     
-    local command="forge create --rpc-url $RPC_URL_REMOTE --private-key $PRIVATE_KEY \
-        contracts/ictt/TokenRemote/ERC20TokenRemote.sol:ERC20TokenRemote \
-        --constructor-args \
-        \"$settings\" \
-        \"MIHIUSDCToken\" \
-        \"MUSDCT1\" \
-        \"6\""
+    local command
+    if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+        log "Deploying ERC2771-compatible ERC20Remote with AvaCloud forwarder"
+        command="forge create --rpc-url $RPC_URL_REMOTE --private-key $PRIVATE_KEY \
+            contracts/ictt/TokenRemote/ERC20TokenRemote.sol:ERC20TokenRemote \
+            --constructor-args \
+            \"$settings\" \
+            \"MIHIUSDCToken\" \
+            \"MUSDCT1\" \
+            \"6\" \
+            \"$AVACLOUD_FORWARDER\""
+    else
+        log "Deploying standard ERC20Remote (with zero forwarder)"
+        command="forge create --rpc-url $RPC_URL_REMOTE --private-key $PRIVATE_KEY \
+            contracts/ictt/TokenRemote/ERC20TokenRemote.sol:ERC20TokenRemote \
+            --constructor-args \
+            \"$settings\" \
+            \"MIHIUSDCToken\" \
+            \"MUSDCT1\" \
+            \"6\" \
+            \"0x0000000000000000000000000000000000000000\""
+    fi
     
     local output
     output=$(execute_forge "$command" "ERC20Remote deployment")
@@ -270,6 +343,11 @@ deploy_erc20_remote() {
     contract_address=$(extract_address "$output")
     local tx_hash
     tx_hash=$(extract_tx_hash "$output")
+    
+    if [[ -z "$contract_address" ]]; then
+        error "ERC20Remote deployment failed - could not extract contract address"
+        return 1
+    fi
     
     log "ERC20 Remote Contract Address: $contract_address"
     log "ERC20 Remote Transaction Hash: $tx_hash"
@@ -360,6 +438,94 @@ deploy_erc20_remote() {
         SEND_TX_HASH="$tx_hash"
     }
 
+    # Test gasless operations (only for ERC2771 mode)
+    test_gasless_operations() {
+        if [[ "$DEPLOYMENT_MODE" != "erc2771" ]]; then
+            log "Skipping gasless tests (not in ERC2771 mode)"
+            return 0
+        fi
+        
+        log "=========================================================================="
+        log "Testing Gasless Operations"
+        log "Note: This requires AvaCloud's relayer to be running"
+        log "You can test gasless operations using the ICTTRelayerClient.js"
+        
+        # Save gasless configuration
+        local gasless_config="{
+  \"avaCloudRelayerAccount\": \"$AVACLOUD_RELAYER_ACCOUNT\",
+  \"avaCloudRegistryContract\": \"$AVACLOUD_REGISTRY_CONTRACT\",
+  \"avaCloudTeleporterContract\": \"$AVACLOUD_TELEPORTER_CONTRACT\",
+  \"avaCloudForwarder\": \"$AVACLOUD_FORWARDER\",
+  \"erc20HomeAddress\": \"$ERC20_HOME_ADDRESS\",
+  \"erc20RemoteAddress\": \"$ERC20_REMOTE_ADDRESS\",
+  \"erc20TokenAddress\": \"$ERC20_TOKEN_ADDRESS\"
+}"
+        
+        echo "$gasless_config" > "$SCRIPT_DIR/gasless_config.json"
+        log "Gasless configuration saved to gasless_config.json"
+        
+        # Create example usage script
+        local example_script="const ICTTRelayerClient = require('./ICTTRelayerClient.js');
+const config = require('./gasless_config.json');
+
+// Initialize provider and wallet
+const provider = new ethers.providers.Web3Provider(window.ethereum);
+const userWallet = provider.getSigner();
+
+// Initialize contracts
+const icttHomeContract = new ethers.Contract(config.erc20HomeAddress, icttHomeABI, userWallet);
+const icttRemoteContract = new ethers.Contract(config.erc20RemoteAddress, icttRemoteABI, userWallet);
+const forwarderContract = new ethers.Contract(config.avaCloudForwarder, forwarderABI, userWallet);
+
+const client = new ICTTRelayerClient(
+    provider, 
+    icttHomeContract, 
+    icttRemoteContract, 
+    forwarderContract, 
+    userWallet
+);
+
+// Example gasless approval
+async function gaslessApprove(amount) {
+    const approvalData = await client.createGaslessApproval(
+        config.erc20TokenAddress, 
+        config.erc20HomeAddress, 
+        amount
+    );
+    // Use AvaCloud's relayer account
+    const receipt = await client.submitGaslessTransaction(approvalData, config.avaCloudRelayerAccount);
+    return receipt;
+}
+
+// Example gasless send
+async function gaslessSend(destinationBlockchainID, recipient, amount) {
+    const sendInput = {
+        destinationBlockchainID,
+        destinationTokenTransferrerAddress: config.erc20RemoteAddress,
+        recipient,
+        primaryFeeTokenAddress: ethers.constants.AddressZero,
+        primaryFee: 0,
+        secondaryFee: 0,
+        requiredGasLimit: 500000,
+        multiHopFallback: userWallet.address
+    };
+    
+    const sendData = await client.createGaslessSend(sendInput, amount);
+    // Use AvaCloud's relayer account
+    const receipt = await client.submitGaslessTransaction(sendData, config.avaCloudRelayerAccount);
+    return receipt;
+}
+
+// Example: Get AvaCloud infrastructure info
+console.log('AvaCloud Relayer Account:', config.avaCloudRelayerAccount);
+console.log('AvaCloud Registry Contract:', config.avaCloudRegistryContract);
+console.log('AvaCloud Teleporter Contract:', config.avaCloudTeleporterContract);
+"
+        
+        echo "$example_script" > "$SCRIPT_DIR/example_gasless_usage.js"
+        log "Example gasless usage script saved to example_gasless_usage.js"
+    }
+
     # Save deployment results
     save_results() {
         local erc20_home_address="$1"
@@ -368,6 +534,7 @@ deploy_erc20_remote() {
         local erc20_remote_tx="$4"
         
         local results="{
+  \"deploymentMode\": \"$DEPLOYMENT_MODE\",
   \"erc20Home\": {
     \"contractAddress\": \"$erc20_home_address\",
     \"transactionHash\": \"$erc20_home_tx\"
@@ -384,7 +551,17 @@ deploy_erc20_remote() {
   },
   \"sendTokens\": {
     \"transactionHash\": \"$SEND_TX_HASH\"
-  },
+  }"
+        
+        if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+            results="$results,
+  \"avaCloudRelayerAccount\": \"$AVACLOUD_RELAYER_ACCOUNT\",
+  \"avaCloudRegistryContract\": \"$AVACLOUD_REGISTRY_CONTRACT\",
+  \"avaCloudTeleporterContract\": \"$AVACLOUD_TELEPORTER_CONTRACT\",
+  \"avaCloudForwarder\": \"$AVACLOUD_FORWARDER\""
+        fi
+        
+        results="$results,
   \"timestamp\": \"$(date -Iseconds)\"
 }"
         
@@ -453,6 +630,9 @@ deploy_and_configure() {
         exit 1
     fi
     
+    # Step 6: Test gasless operations (ERC2771 mode only)
+    test_gasless_operations
+    
     # Save results
     save_results "$ERC20_HOME_ADDRESS" "$ERC20_REMOTE_ADDRESS" "$ERC20_HOME_TX_HASH" "$ERC20_REMOTE_TX_HASH"
     
@@ -461,6 +641,28 @@ deploy_and_configure() {
     log "Contract addresses:"
     log "  ERC20Home: $ERC20_HOME_ADDRESS"
     log "  ERC20Remote: $ERC20_REMOTE_ADDRESS"
+    
+    if [[ "$DEPLOYMENT_MODE" == "erc2771" ]]; then
+        log ""
+        log "ERC2771 Gasless Configuration:"
+        log "  AvaCloud Relayer Account: $AVACLOUD_RELAYER_ACCOUNT"
+        log "  AvaCloud Registry Contract: $AVACLOUD_REGISTRY_CONTRACT"
+        log "  AvaCloud Teleporter Contract: $AVACLOUD_TELEPORTER_CONTRACT"
+        log "  AvaCloud Unified Forwarder: $AVACLOUD_FORWARDER"
+        log "  Gasless config saved to: gasless_config.json"
+        log "  Example usage saved to: example_gasless_usage.js"
+        log ""
+        log "To test gasless operations:"
+        log "  1. Use ICTTRelayerClient.js with the generated config"
+        log "  2. AvaCloud relayer handles gas for both chains"
+        log "  3. Test with small amounts first"
+        log ""
+        log "AvaCloud Infrastructure:"
+        log "  - Relayer Account pays for gas on both chains"
+        log "  - Teleporter Contract handles ICTT cross-chain messaging"
+        log "  - Registry Contract manages contract registrations"
+        log "  - ERC2771Forwarder handles meta-transactions"
+    fi
 }
 
 # Check prerequisites

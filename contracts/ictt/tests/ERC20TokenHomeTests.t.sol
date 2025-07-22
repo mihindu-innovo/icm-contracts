@@ -32,7 +32,7 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
 
         mockERC20 = new ExampleERC20();
         tokenHomeDecimals = 6;
-        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Allowed);
+        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Allowed, address(0));
         app.initialize(
             MOCK_TELEPORTER_REGISTRY_ADDRESS,
             MOCK_TELEPORTER_MESSENGER_ADDRESS,
@@ -56,13 +56,14 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
             address(this),
             1,
             address(mockERC20),
-            tokenHomeDecimals
+            tokenHomeDecimals,
+            address(0)
         );
         assertEq(app.getBlockchainID(), DEFAULT_TOKEN_HOME_BLOCKCHAIN_ID);
     }
 
     function testDisableInitialization() public {
-        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed);
+        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Disallowed, address(0));
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         app.initialize(
             MOCK_TELEPORTER_REGISTRY_ADDRESS,
@@ -311,7 +312,7 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
         uint8 tokenDecimals,
         bytes memory expectedErrorMessage
     ) private {
-        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Allowed);
+        app = new ERC20TokenHomeUpgradeable(ICMInitializable.Allowed, address(0));
         vm.expectRevert(expectedErrorMessage);
         app.initialize(
             teleporterRegistryAddress, teleporterManagerAddress, 1, feeTokenAddress, tokenDecimals

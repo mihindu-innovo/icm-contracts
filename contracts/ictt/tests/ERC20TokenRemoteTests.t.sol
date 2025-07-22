@@ -65,13 +65,14 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
             }),
             MOCK_TOKEN_NAME,
             MOCK_TOKEN_SYMBOL,
-            tokenDecimals
+            tokenDecimals,
+            address(0)
         );
         assertEq(app.getBlockchainID(), DEFAULT_TOKEN_REMOTE_BLOCKCHAIN_ID);
     }
 
     function testDisableInitialization() public {
-        app = new ERC20TokenRemoteUpgradeable(ICMInitializable.Disallowed);
+        app = new ERC20TokenRemoteUpgradeable(ICMInitializable.Disallowed, address(0));
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         app.initialize(
             TokenRemoteSettings({
@@ -206,7 +207,7 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
 
     function _createNewRemoteInstance() internal override returns (TokenRemote) {
         ERC20TokenRemoteUpgradeable instance =
-            new ERC20TokenRemoteUpgradeable(ICMInitializable.Allowed);
+            new ERC20TokenRemoteUpgradeable(ICMInitializable.Allowed, address(0));
         instance.initialize(
             TokenRemoteSettings({
                 teleporterRegistryAddress: MOCK_TELEPORTER_REGISTRY_ADDRESS,
@@ -331,7 +332,7 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
         uint8 tokenDecimals_,
         bytes memory expectedErrorMessage
     ) private {
-        app = new ERC20TokenRemoteUpgradeable(ICMInitializable.Allowed);
+        app = new ERC20TokenRemoteUpgradeable(ICMInitializable.Allowed, address(0));
         vm.expectRevert(expectedErrorMessage);
         app.initialize(settings, tokenName, tokenSymbol, tokenDecimals_);
     }
