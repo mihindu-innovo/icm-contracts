@@ -1,9 +1,12 @@
 const { ethers } = require('ethers');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Gasless ERC20 Bridge Client
  * Demonstrates gasless transactions for ERC20 bridge functionality
+ * Tests both directions: Home to Remote (regular) and Remote to Home (gasless)
  */
 class GaslessBridgeClient {
     constructor(config) {
@@ -70,14 +73,14 @@ class GaslessBridgeClient {
     }
 
     /**
-     * Test 1: Chain to Innovo (User pays gas)
+     * Test 1: Home to Remote (Regular transaction - user pays gas)
      * @param {ethers.Wallet} wallet - User wallet
      * @param {Object} contracts - Contract instances
      * @param {string} recipient - Recipient address
      * @param {string} amount - Amount to transfer (in wei)
      */
-    async testChainToInnovo(wallet, contracts, recipient, amount) {
-        console.log('=== Test 1: Chain to Innovo (User pays gas) ===');
+    async testHomeToRemote(wallet, contracts, recipient, amount) {
+        console.log('=== Test 1: Home to Remote (Regular transaction - user pays gas) ===');
         
         const { erc20Home, erc20Remote, erc20Token } = contracts;
 
@@ -86,9 +89,10 @@ class GaslessBridgeClient {
         const approveTx = await erc20Token.approve(this.config.erc20HomeAddress, amount);
         await approveTx.wait();
         console.log(`✓ Approved ${ethers.utils.formatUnits(amount, 6)} USDC for ERC20Home`);
+        console.log(`  Transaction hash: ${approveTx.hash}`);
 
         // Step 2: Send tokens from home to remote (user pays gas)
-        console.log('Step 2: Sending tokens from Chain to Innovo...');
+        console.log('Step 2: Sending tokens from Home to Remote...');
         
         const sendInput = {
             destinationBlockchainID: this.config.innovomarkBlockchainID,
@@ -103,21 +107,21 @@ class GaslessBridgeClient {
 
         const sendTx = await erc20Home.send(sendInput, amount);
         const sendReceipt = await sendTx.wait();
-        console.log(`✓ Sent ${ethers.utils.formatUnits(amount, 6)} USDC from Chain to Innovo`);
+        console.log(`✓ Sent ${ethers.utils.formatUnits(amount, 6)} USDC from Home to Remote`);
         console.log(`  Transaction hash: ${sendReceipt.transactionHash}`);
 
         return sendReceipt;
     }
 
     /**
-     * Test 2: Innovo to Chain (Gasless via relayer)
+     * Test 2: Remote to Home (Gasless transaction via relayer)
      * @param {ethers.Wallet} wallet - User wallet
      * @param {Object} contracts - Contract instances
      * @param {string} recipient - Recipient address
      * @param {string} amount - Amount to transfer (in wei)
      */
-    async testInnovoToChain(wallet, contracts, recipient, amount) {
-        console.log('\n=== Test 2: Innovo to Chain (Gasless via relayer) ===');
+    async testRemoteToHome(wallet, contracts, recipient, amount) {
+        console.log('\n=== Test 2: Remote to Home (Gasless transaction via relayer) ===');
         
         const { erc20Home, erc20Remote, erc20Token } = contracts;
 
@@ -156,7 +160,7 @@ class GaslessBridgeClient {
         );
 
         const sendReceipt = await this.submitGaslessTransaction(sendData);
-        console.log(`✓ Gasless send submitted for ${ethers.utils.formatUnits(amount, 6)} USDC from Innovo to Chain`);
+        console.log(`✓ Gasless send submitted for ${ethers.utils.formatUnits(amount, 6)} USDC from Remote to Home`);
         console.log(`  Transaction hash: ${sendReceipt.transactionHash}`);
 
         return sendReceipt;
@@ -377,8 +381,6 @@ class GaslessBridgeClient {
         return erc20RemoteInterface.encodeFunctionData('send', [sendInput, amount]);
     }
 
-
-
     // ABI definitions
     getForwarderABI() {
         return [
@@ -413,83 +415,155 @@ class GaslessBridgeClient {
 }
 
 /**
- * Example usage and test function
+ * Load configuration from deployment folder
+ * @param {string} deploymentFolder - Path to deployment folder (default: contracts/ictt)
+ * @returns {Object} - Configuration object
  */
-async function runGaslessBridgeTest() {
-    // Load configuration
-    const config = require('./gasless_config.json');
+function loadConfig(deploymentFolder = null) {
+    // Resolve the path relative to the current script location
+    const scriptDir = __dirname; // tests/flows/ictt
+    const projectRoot = path.join(scriptDir, '..', '..', '..'); // Go up 3 levels to project root
+    const contractsIcttPath = path.join(projectRoot, 'contracts', 'ictt');
     
-    // Add blockchain IDs and RPC URLs
-    config.cChainBlockchainID = '0x7fc93d85c6d62c5b2ac0b519c87010ea5294012d1e407030d6acd0021cac10d5';
-    config.innovomarkBlockchainID = '0xeaa43ceb6e928c745155585de433f487399081a800080775b0fce622b113fc95';
-    config.homeRpcUrl = 'https://api.avax-test.network/ext/bc/C/rpc';
-    config.remoteRpcUrl = 'https://subnets.avax.network/innovomark/testnet/rpc';
+    // Use provided deployment folder or default to contracts/ictt
+    const basePath = deploymentFolder ? path.resolve(deploymentFolder) : contractsIcttPath;
+    
+    const configPath = path.join(basePath, 'gasless_config.json');
+    const deploymentResultsPath = path.join(basePath, 'deployment_results.json');
+    
+    console.log(`Loading config from: ${configPath}`);
+    console.log(`Loading deployment results from: ${deploymentResultsPath}`);
+    
+    if (!fs.existsSync(configPath)) {
+        throw new Error(`Gasless config not found at: ${configPath}`);
+    }
+    
+    if (!fs.existsSync(deploymentResultsPath)) {
+        throw new Error(`Deployment results not found at: ${deploymentResultsPath}`);
+    }
+    
+    // Load gasless config
+    const gaslessConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    
+    // Load deployment results
+    const deploymentResults = JSON.parse(fs.readFileSync(deploymentResultsPath, 'utf8'));
+    
+    // Merge deployment results into config
+    const config = {
+        ...gaslessConfig,
+        erc20HomeAddress: deploymentResults.erc20Home.contractAddress,
+        erc20RemoteAddress: deploymentResults.erc20Remote.contractAddress,
+        forwarderAddress: deploymentResults.forwarderAddress
+    };
+    
+    console.log('Configuration loaded successfully:');
+    console.log(`  ERC20Home: ${config.erc20HomeAddress}`);
+    console.log(`  ERC20Remote: ${config.erc20RemoteAddress}`);
+    console.log(`  Forwarder: ${config.forwarderAddress}`);
+    
+    return config;
+}
 
-    // Initialize client
-    const client = new GaslessBridgeClient(config);
-
-    // Import wallet from private key for home network
-    const privateKey = process.env.PRIVATE_KEY || '0x8a22131111b07684e5df85ef89ffd5350ce106115207c818a3bba12470744eb4';
-    const homeWallet = client.importWallet(privateKey, 'home');
-    console.log(`Home wallet address: ${homeWallet.address}`);
-
-    // Initialize contracts for home network
-    const homeContracts = client.initializeContracts(homeWallet, 'home');
-    console.log('Home contracts initialized');
-
-    // Test parameters
-    const recipient = homeWallet.address; // Send to self for testing
-    const amount = ethers.utils.parseUnits('0.1', 6); // 0.1 USDC (6 decimals)
-
+/**
+ * Run bidirectional ICTT test
+ * @param {string} deploymentFolder - Path to deployment folder
+ * @param {string} privateKey - Private key for testing
+ */
+async function runBidirectionalICTTTest(deploymentFolder = null, privateKey = null) {
     try {
-        // Test 1: Chain to Innovo (User pays gas)
-        console.log('\n--- Testing Chain to Innovo ---');
-        const chainToInnovoReceipt = await client.testChainToInnovo(
+        // Load configuration from deployment folder
+        const config = loadConfig(deploymentFolder);
+        
+        // Use provided private key or environment variable
+        const testPrivateKey = privateKey || process.env.PRIVATE_KEY || '0x8a22131111b07684e5df85ef89ffd5350ce106115207c818a3bba12470744eb4';
+        
+        // Initialize client
+        const client = new GaslessBridgeClient(config);
+        
+        // Test parameters
+        const recipient = '0x03F2dA5859BA2991Bc243540004793F2b646B296'; // Test recipient
+        const amount = ethers.utils.parseUnits('0.1', 6); // 0.1 USDC (6 decimals)
+        
+        console.log('\n=== Starting Bidirectional ICTT Test ===');
+        console.log(`Test recipient: ${recipient}`);
+        console.log(`Test amount: ${ethers.utils.formatUnits(amount, 6)} USDC`);
+        
+        // Test 1: Home to Remote (Regular transaction)
+        console.log('\n--- Test 1: Home to Remote (Regular transaction) ---');
+        
+        // Import wallet for home network
+        const homeWallet = client.importWallet(testPrivateKey, 'home');
+        console.log(`Home wallet address: ${homeWallet.address}`);
+        
+        // Initialize contracts for home network
+        const homeContracts = client.initializeContracts(homeWallet, 'home');
+        console.log('Home contracts initialized');
+        
+        const homeToRemoteReceipt = await client.testHomeToRemote(
             homeWallet, 
             homeContracts, 
             recipient, 
             amount
         );
-
-        // Wait a bit for cross-chain message to be processed
-        console.log('Waiting for cross-chain message processing...');
+        
+        // Wait for cross-chain message processing
+        console.log('\nWaiting for cross-chain message processing (10 seconds)...');
         await new Promise(resolve => setTimeout(resolve, 10000));
-
-        // Test 2: Innovo to Chain (Gasless via relayer)
-        console.log('\n--- Testing Innovo to Chain (Gasless) ---');
+        
+        // Test 2: Remote to Home (Gasless transaction)
+        console.log('\n--- Test 2: Remote to Home (Gasless transaction) ---');
         
         // Import wallet for remote network
-        const remoteWallet = client.importWallet(privateKey, 'remote');
+        const remoteWallet = client.importWallet(testPrivateKey, 'remote');
         console.log(`Remote wallet address: ${remoteWallet.address}`);
         
         // Initialize contracts for remote network
         const remoteContracts = client.initializeContracts(remoteWallet, 'remote');
         console.log('Remote contracts initialized');
-
-        const innovoToChainReceipt = await client.testInnovoToChain(
+        
+        const remoteToHomeReceipt = await client.testRemoteToHome(
             remoteWallet, 
             remoteContracts, 
             recipient, 
             amount
         );
-
-        console.log('\n=== Gasless Bridge Test Completed Successfully ===');
-        console.log('Chain to Innovo transaction:', chainToInnovoReceipt.transactionHash);
-        console.log('Innovo to Chain transaction:', innovoToChainReceipt.transactionHash);
-
+        
+        console.log('\n=== Bidirectional ICTT Test Completed Successfully ===');
+        console.log('Home to Remote transaction:', homeToRemoteReceipt.transactionHash);
+        console.log('Remote to Home transaction:', remoteToHomeReceipt.transactionHash);
+        
+        return {
+            homeToRemote: homeToRemoteReceipt,
+            remoteToHome: remoteToHomeReceipt
+        };
+        
     } catch (error) {
-        console.error('Test failed:', error);
-        process.exit(1);
+        console.error('Bidirectional ICTT test failed:', error);
+        throw error;
     }
 }
 
 // Export for use in other modules
 module.exports = {
     GaslessBridgeClient,
-    runGaslessBridgeTest
+    loadConfig,
+    runBidirectionalICTTTest
 };
 
 // Run test if this file is executed directly
 if (require.main === module) {
-    runGaslessBridgeTest().catch(console.error);
+    const deploymentFolder = process.argv[2] || null;
+    const privateKey = process.argv[3] || null;
+    
+    console.log(`Running bidirectional ICTT test with deployment folder: ${deploymentFolder || 'contracts/ictt (default)'}`);
+    
+    runBidirectionalICTTTest(deploymentFolder, privateKey)
+        .then(() => {
+            console.log('Test completed successfully');
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('Test failed:', error);
+            process.exit(1);
+        });
 } 
