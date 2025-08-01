@@ -1,0 +1,29 @@
+{
+    "deployment": {
+        "timestamp": "2025-08-01T14:20:59Z",
+        "network": {
+            "home": {
+                "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+                "blockchainId": "0x7fc93d85c6d62c5b2ac0b519c87010ea5294012d1e407030d6acd0021cac10d5"
+            },
+            "remote": {
+                "rpcUrl": "https://subnets.avax.network/innovomark/testnet/rpc",
+                "blockchainId": "0xeaa43ceb6e928c745155585de433f487399081a800080775b0fce622b113fc95"
+            }
+        },
+        "contracts": {
+            "erc20Home": {
+                "contractAddress": "0x9f8d9D84366086F49D266E3aD7BbF93eea0cb514",
+                "transactionHash": ""
+            },
+            "erc20Remote": {
+                "contractAddress": "0x6419458Fa0E14037EbaFC6Ffb14f46a7dF295C1a",
+                "transactionHash": ""
+            }
+        },
+        "gasless": {
+            "forwarder": "0xadb1cc52d50089a57c797685ea085e5cd2642c82",
+            "signatory": "0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8"
+        }
+    }
+}

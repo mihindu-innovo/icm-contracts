@@ -1,0 +1,171 @@
+[2025-08-01 18:09:46] ERROR: Foundry build failed. Please check your remappings and dependencies.
+[2025-08-01 18:25:59] ERROR: Foundry build failed. Please check your remappings and dependencies.
+[2025-08-01 18:28:16] ERROR: Foundry build failed. Please check your remappings and dependencies.
+[2025-08-01 19:25:14] Prerequisites check passed
+[2025-08-01 19:25:14] ==========================================================================
+[2025-08-01 19:25:14] Deploying ERC20Home on Home
+[2025-08-01 19:25:15] ERROR: ERC20Home deployment failed - could not extract contract address
+[2025-08-01 19:25:15] ERROR: ERC20Home deployment failed
+[2025-08-01 19:29:09] Prerequisites check passed
+[2025-08-01 19:29:09] ==========================================================================
+[2025-08-01 19:29:09] Deploying ERC20Home on Home
+[2025-08-01 19:29:10] ERROR: ERC20Home deployment failed - could not extract contract address
+[2025-08-01 19:29:10] ERROR: ERC20Home deployment failed
+[2025-08-01 19:32:35] Prerequisites check passed
+[2025-08-01 19:32:35] ==========================================================================
+[2025-08-01 19:32:35] Deploying ERC20Home on Home
+[2025-08-01 19:32:47] ERC20 Home Contract Address: 0x77778C470875c94359124A44CBf5Cd1a70400883
+[2025-08-01 19:32:47] ERC20 Home Transaction Hash: 
+[2025-08-01 19:32:47] ERC20Home deployment successful
+[2025-08-01 19:32:47] ==========================================================================
+[2025-08-01 19:32:47] Deploying ERC20Remote with gasless functionality on Remote
+[2025-08-01 19:32:51] ERC20 Remote Contract Address: 0x41f861a47670eeD66C4863bBe34f313256C910A9
+[2025-08-01 19:32:51] ERC20 Remote Transaction Hash: 
+[2025-08-01 19:32:51] Initializing ERC20Remote contract...
+[2025-08-01 19:32:53] ERROR: ERC20Remote initialization failed
+[2025-08-01 19:32:53] ERROR: ERC20Remote deployment failed
+[2025-08-01 19:33:49] Prerequisites check passed
+[2025-08-01 19:33:49] ==========================================================================
+[2025-08-01 19:33:49] Deploying ERC20Home on Home
+[2025-08-01 19:33:59] ERC20 Home Contract Address: 0x64FA1C55B43219b204397F527cBC033eaBa8d9d4
+[2025-08-01 19:33:59] ERC20 Home Transaction Hash: 
+[2025-08-01 19:33:59] ERC20Home deployment successful
+[2025-08-01 19:33:59] ==========================================================================
+[2025-08-01 19:33:59] Deploying ERC20Remote with gasless functionality on Remote
+[2025-08-01 19:34:03] ERC20 Remote Contract Address: 0x1A8Cbc75470E9390128D49641600620cC89d60E3
+[2025-08-01 19:34:03] ERC20 Remote Transaction Hash: 
+[2025-08-01 19:34:03] Setting signatory for gasless operations...
+[2025-08-01 19:34:05] Signatory set successfully
+[2025-08-01 19:34:05] ==========================================================================
+[2025-08-01 19:34:05] Registering contracts
+[2025-08-01 19:34:07] Contracts registered successfully
+[2025-08-01 19:34:07] ==========================================================================
+[2025-08-01 19:34:07] Approving tokens for transfer
+[2025-08-01 19:34:17] Tokens approved successfully
+[2025-08-01 19:34:17] ==========================================================================
+[2025-08-01 19:34:17] Sending tokens cross-chain
+[2025-08-01 19:34:26] Tokens sent successfully
+[2025-08-01 19:34:26] ==========================================================================
+[2025-08-01 19:34:26] Saving deployment results
+[2025-08-01 19:34:26] Results saved to: ./deployment_gasless_results.json
+[2025-08-01 19:34:26] ==========================================================================
+[2025-08-01 19:34:27] Deployment completed successfully!
+[2025-08-01 19:34:27] 
+[2025-08-01 19:34:27] Contract Addresses:
+[2025-08-01 19:34:27]   ERC20Home: 0x64FA1C55B43219b204397F527cBC033eaBa8d9d4
+[2025-08-01 19:34:27]   ERC20Remote: 0x1A8Cbc75470E9390128D49641600620cC89d60E3
+[2025-08-01 19:34:27] 
+[2025-08-01 19:34:27] Gasless Configuration:
+[2025-08-01 19:34:27]   Forwarder: 0xadb1cc52d50089a57c797685ea085e5cd2642c82
+[2025-08-01 19:34:27]   Signatory: 0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8
+[2025-08-01 19:34:27] 
+[2025-08-01 19:34:27] Next steps:
+[2025-08-01 19:34:27]   1. Test regular send from Home to Remote
+[2025-08-01 19:34:27]   2. Test gasless send from Remote to Home using gaslessSend()
+[2025-08-01 19:34:27]   3. Use the deployment results for client testing
+[2025-08-01 19:43:13] Prerequisites check passed
+[2025-08-01 19:43:13] ==========================================================================
+[2025-08-01 19:43:13] Deploying ERC20Home on Home
+[2025-08-01 19:43:24] ERC20 Home Contract Address: 0xef3c6d4Bab3A9c51911EB031d9cfC436165CAa7d
+[2025-08-01 19:43:24] ERC20 Home Transaction Hash: 
+[2025-08-01 19:43:24] ERC20Home deployment successful
+[2025-08-01 19:43:24] ==========================================================================
+[2025-08-01 19:43:24] Deploying ERC20Remote with gasless functionality on Remote
+[2025-08-01 19:43:28] ERC20 Remote Contract Address: 0x23D6Aac8Cd6c1E8AE556Cc08E5510682fe088224
+[2025-08-01 19:43:28] ERC20 Remote Transaction Hash: 
+[2025-08-01 19:43:28] Setting signatory for gasless operations...
+[2025-08-01 19:43:31] Signatory set successfully
+[2025-08-01 19:43:31] ==========================================================================
+[2025-08-01 19:43:31] Registering contracts
+[2025-08-01 19:43:34] Contracts registered successfully
+[2025-08-01 19:43:34] ==========================================================================
+[2025-08-01 19:43:34] Approving tokens for transfer
+[2025-08-01 19:43:43] Tokens approved successfully
+[2025-08-01 19:43:43] ==========================================================================
+[2025-08-01 19:43:43] Sending tokens cross-chain (Home to Remote)
+[2025-08-01 19:43:53] Tokens sent successfully (Home to Remote)
+[2025-08-01 19:43:53] ==========================================================================
+[2025-08-01 19:43:53] Waiting for cross-chain message processing...
+[2025-08-01 19:44:24] Message processing wait completed
+[2025-08-01 19:44:24] ==========================================================================
+[2025-08-01 19:44:24] Testing gasless send (Remote to Home)
+[2025-08-01 19:44:24] Checking balance on remote chain...
+[2025-08-01 19:44:24] Balance on remote chain: 0x0000000000000000000000000000000000000000000000000000000000000001
+[2025-08-01 19:44:24] Note: Gasless send requires client-side signature and relayer submission
+[2025-08-01 19:44:24] This test demonstrates the contract deployment and configuration
+[2025-08-01 19:44:24] For actual gasless testing, use the gasless_send_client.js script
+[2025-08-01 19:44:24] ==========================================================================
+[2025-08-01 19:44:24] Saving deployment results
+[2025-08-01 19:44:24] Results saved to: ./deployment_gasless_results.json
+[2025-08-01 19:44:25] ==========================================================================
+[2025-08-01 19:44:25] Deployment completed successfully!
+[2025-08-01 19:44:25] 
+[2025-08-01 19:44:25] Contract Addresses:
+[2025-08-01 19:44:25]   ERC20Home: 0xef3c6d4Bab3A9c51911EB031d9cfC436165CAa7d
+[2025-08-01 19:44:25]   ERC20Remote: 0x23D6Aac8Cd6c1E8AE556Cc08E5510682fe088224
+[2025-08-01 19:44:25] 
+[2025-08-01 19:44:25] Gasless Configuration:
+[2025-08-01 19:44:25]   Forwarder: 0xadb1cc52d50089a57c797685ea085e5cd2642c82
+[2025-08-01 19:44:25]   Signatory: 0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8
+[2025-08-01 19:44:25] 
+[2025-08-01 19:44:25] Next steps:
+[2025-08-01 19:44:25]   1. ✅ Regular send from Home to Remote (completed)
+[2025-08-01 19:44:25]   2. ✅ Balance check on Remote chain (completed)
+[2025-08-01 19:44:25]   3. 🔄 Test gasless send from Remote to Home using gaslessSend()
+[2025-08-01 19:44:25]   4. Use the deployment results for client testing
+[2025-08-01 19:44:25] 
+[2025-08-01 19:44:25] For gasless testing, run:
+[2025-08-01 19:44:25]   node tests/flows/ictt/gasless_send_client.js
+[2025-08-01 19:49:47] Prerequisites check passed
+[2025-08-01 19:49:47] ==========================================================================
+[2025-08-01 19:49:47] Deploying ERC20Home on Home
+[2025-08-01 19:49:58] ERC20 Home Contract Address: 0x9f8d9D84366086F49D266E3aD7BbF93eea0cb514
+[2025-08-01 19:49:58] ERC20 Home Transaction Hash: 
+[2025-08-01 19:49:58] ERC20Home deployment successful
+[2025-08-01 19:49:58] ==========================================================================
+[2025-08-01 19:49:58] Deploying ERC20Remote with gasless functionality on Remote
+[2025-08-01 19:50:03] ERC20 Remote Contract Address: 0x6419458Fa0E14037EbaFC6Ffb14f46a7dF295C1a
+[2025-08-01 19:50:03] ERC20 Remote Transaction Hash: 
+[2025-08-01 19:50:03] Setting signatory for gasless operations...
+[2025-08-01 19:50:05] Signatory set successfully
+[2025-08-01 19:50:05] ==========================================================================
+[2025-08-01 19:50:05] Registering contracts
+[2025-08-01 19:50:07] Contracts registered successfully
+[2025-08-01 19:50:07] ==========================================================================
+[2025-08-01 19:50:07] Approving tokens for transfer
+[2025-08-01 19:50:18] Tokens approved successfully
+[2025-08-01 19:50:18] ==========================================================================
+[2025-08-01 19:50:18] Sending tokens cross-chain (Home to Remote)
+[2025-08-01 19:50:28] Tokens sent successfully (Home to Remote)
+[2025-08-01 19:50:28] ==========================================================================
+[2025-08-01 19:50:28] Waiting for cross-chain message processing...
+[2025-08-01 19:50:58] Message processing wait completed
+[2025-08-01 19:50:58] ==========================================================================
+[2025-08-01 19:50:58] Testing gasless send (Remote to Home)
+[2025-08-01 19:50:58] Checking balance on remote chain...
+[2025-08-01 19:50:59] Balance on remote chain: 0x0000000000000000000000000000000000000000000000000000000000000001
+[2025-08-01 19:50:59] Note: Gasless send requires client-side signature and relayer submission
+[2025-08-01 19:50:59] This test demonstrates the contract deployment and configuration
+[2025-08-01 19:50:59] For actual gasless testing, use the gasless_send_client.js script
+[2025-08-01 19:50:59] ==========================================================================
+[2025-08-01 19:50:59] Saving deployment results
+[2025-08-01 19:50:59] Results saved to: ./deployment_gasless_results.json
+[2025-08-01 19:50:59] ==========================================================================
+[2025-08-01 19:50:59] Deployment completed successfully!
+[2025-08-01 19:50:59] 
+[2025-08-01 19:50:59] Contract Addresses:
+[2025-08-01 19:50:59]   ERC20Home: 0x9f8d9D84366086F49D266E3aD7BbF93eea0cb514
+[2025-08-01 19:50:59]   ERC20Remote: 0x6419458Fa0E14037EbaFC6Ffb14f46a7dF295C1a
+[2025-08-01 19:50:59] 
+[2025-08-01 19:50:59] Gasless Configuration:
+[2025-08-01 19:50:59]   Forwarder: 0xadb1cc52d50089a57c797685ea085e5cd2642c82
+[2025-08-01 19:50:59]   Signatory: 0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8
+[2025-08-01 19:50:59] 
+[2025-08-01 19:51:00] Next steps:
+[2025-08-01 19:51:00]   1. ✅ Regular send from Home to Remote (completed)
+[2025-08-01 19:51:00]   2. ✅ Balance check on Remote chain (completed)
+[2025-08-01 19:51:00]   3. 🔄 Test gasless send from Remote to Home using gaslessSend()
+[2025-08-01 19:51:00]   4. Use the deployment results for client testing
+[2025-08-01 19:51:00] 
+[2025-08-01 19:51:00] For gasless testing, run:
+[2025-08-01 19:51:00]   cd /c/code/InnovoMarkets/icm-contracts && node tests/flows/ictt/gasless_send_client.js

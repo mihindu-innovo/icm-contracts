@@ -1,0 +1,26 @@
+{
+  "name": "icm-contracts",
+  "version": "1.0.0",
+  "description": "ICM Contracts with gasless functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gasless-test": "node tests/flows/ictt/gasless_send_client.js"
+  },
+  "dependencies": {
+    "ethers": "^6.6.5",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "solidity",
+    "gasless",
+    "teleporter"
+  ],
+  "author": "InnovoMarkets",
+  "license": "MIT"
+} 

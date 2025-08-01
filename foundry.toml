@@ -9,6 +9,10 @@ bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200
 
+remappings = [
+    "@opengsn/contracts/=lib/gsn/packages/contracts/"
+]
+
 [fmt]
 line_length = 100
 tab_width = 4
