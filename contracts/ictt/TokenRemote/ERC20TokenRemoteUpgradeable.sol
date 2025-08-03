@@ -20,9 +20,9 @@ import {ERC20Upgradeable} from
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
-import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@opengsn/contracts/src/ERC2771Recipient.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
 /**
  * @title ERC20TokenRemoteUpgradeable
@@ -46,10 +46,6 @@ contract ERC20TokenRemoteUpgradeable is
      */
     struct ERC20TokenRemoteStorage {
         uint8 _decimals;
-        /// @notice store used nonces for gasless operations
-        mapping(uint256 nonce => bool status) nonces;
-        /// @notice signatory address for signature validation
-        address signatory;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -60,30 +56,13 @@ contract ERC20TokenRemoteUpgradeable is
     bytes32 public constant ERC20_TOKEN_REMOTE_STORAGE_LOCATION =
         0x9b9029a3537fcf0e984763da4ac33bbf592a3462819171bf424e91cf62622300;
 
-    event ForwarderSet(address indexed forwarder);
-    event SignatorySet(address indexed signatory);
-    event GaslessSendExecuted(
-        address indexed sender,
-        bytes32 indexed destinationBlockchainID,
-        address indexed destinationTokenTransferrerAddress,
-        uint256 amount,
-        uint256 nonce,
-        bytes signature
-    );
+    // Debug events for logging
+    event DebugSendCalled(address indexed sender, uint256 amount);
+    event DebugBurnCalled(address indexed sender, uint256 amount);
+    event DebugSpendAllowanceCalled(address indexed owner, address indexed spender, uint256 amount, uint256 currentAllowance);
+    event DebugAllowanceCheck(address indexed owner, address indexed spender, uint256 required, uint256 available);
 
-    // _______________ Errors _______________
 
-    /// @notice Error when nonce already used
-    error NonceAlreadyUsed(uint256 nonce);
-    
-    /// @notice Error when signature is wrong
-    error WrongSignature();
-    
-    /// @notice Error when signature is expired
-    error ExpiredSignature();
-    
-    /// @notice Error when sender is not allowlisted
-    error NotAllowlisted();
 
     // solhint-disable ordering
     function _getERC20TokenRemoteStorage()
@@ -112,14 +91,16 @@ contract ERC20TokenRemoteUpgradeable is
      * @param tokenName The name of the ERC20 token.
      * @param tokenSymbol The symbol of the ERC20 token.
      * @param tokenDecimals The number of decimals for the ERC20 token.
+     * @param forwarder The trusted forwarder address for gasless transactions.
      */
     function initialize(
         TokenRemoteSettings memory settings,
         string memory tokenName,
         string memory tokenSymbol,
-        uint8 tokenDecimals
+        uint8 tokenDecimals,
+        address forwarder
     ) public initializer {
-        __ERC20TokenRemote_init(settings, tokenName, tokenSymbol, tokenDecimals);
+        __ERC20TokenRemote_init(settings, tokenName, tokenSymbol, tokenDecimals, forwarder);
     }
 
     // solhint-disable-next-line func-name-mixedcase
@@ -127,18 +108,21 @@ contract ERC20TokenRemoteUpgradeable is
         TokenRemoteSettings memory settings,
         string memory tokenName,
         string memory tokenSymbol,
-        uint8 tokenDecimals
+        uint8 tokenDecimals,
+        address forwarder
     ) internal onlyInitializing {
         __ERC20_init(tokenName, tokenSymbol);
         __TokenRemote_init(settings, 0, tokenDecimals);
-        __ERC20TokenRemote_init_unchained(tokenDecimals);
+        __ERC20TokenRemote_init_unchained(tokenDecimals, forwarder);
     }
 
     // solhint-disable-next-line func-name-mixedcase
     function __ERC20TokenRemote_init_unchained(
-        uint8 tokenDecimals
+        uint8 tokenDecimals,
+        address forwarder
     ) internal {
         _getERC20TokenRemoteStorage()._decimals = tokenDecimals;
+        _setTrustedForwarder(forwarder);
     }
     // solhint-enable ordering
 
@@ -150,8 +134,14 @@ contract ERC20TokenRemoteUpgradeable is
      * first to check for token transfer balance, and then routed to the final destination TokenRemote instance.
      */
     function send(SendTokensInput calldata input, uint256 amount) external {
+        emit DebugSendCalled(_msgSender(), amount);
+        // For gasless transactions, we need to ensure _msgSender() returns the correct sender
+        // The _send function will use _msgSender() internally, which should now work correctly
+        // with our ERC2771Recipient override
         _send(input, amount);
     }
+
+
 
     /**
      * @dev See {IERC20TokenTransferrer-sendAndCall}
@@ -190,9 +180,35 @@ contract ERC20TokenRemoteUpgradeable is
     function _burn(
         uint256 amount
     ) internal virtual override returns (uint256) {
+        emit DebugBurnCalled(_msgSender(), amount);
         _spendAllowance(_msgSender(), address(this), amount);
         _burn(_msgSender(), amount);
         return amount;
+    }
+    
+    /**
+     * @dev Override approve to add debug logging
+     */
+    function approve(address spender, uint256 value) public virtual override returns (bool) {
+        return super.approve(spender, value);
+    }
+
+    /**
+     * @dev Override _spendAllowance to add debug logging
+     */
+    function _spendAllowance(address owner, address spender, uint256 value) internal virtual override {
+        uint256 currentAllowance = allowance(owner, spender);
+        emit DebugSpendAllowanceCalled(owner, spender, value, currentAllowance);
+        
+        if (currentAllowance != type(uint256).max) {
+            if (currentAllowance < value) {
+                emit DebugAllowanceCheck(owner, spender, value, currentAllowance);
+                revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+            }
+            unchecked {
+                _approve(owner, spender, currentAllowance - value, false);
+            }
+        }
     }
 
     /**
@@ -274,167 +290,17 @@ contract ERC20TokenRemoteUpgradeable is
             SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
     }
 
-    // _______________ Gasless Functions _______________
-
     /**
-     * @notice Set the trusted forwarder for OpenGSN meta-transactions
-     * @param forwarder The forwarder address
+     * @dev Override _msgSender to use ERC2771Recipient implementation
      */
-    function setForwarder(address forwarder) external {
-        _setTrustedForwarder(forwarder);
-        emit ForwarderSet(forwarder);
+    function _msgSender() internal view virtual override(ContextUpgradeable, ERC2771Recipient) returns (address) {
+        return ERC2771Recipient._msgSender();
     }
 
     /**
-     * @notice Set the signatory address for signature validation
-     * @param newSignatory The signatory address
+     * @dev Override _msgData to use ERC2771Recipient implementation
      */
-    function setSignatory(address newSignatory) external {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        $.signatory = newSignatory;
-        emit SignatorySet(newSignatory);
-    }
-
-    /**
-     * @notice Get the signatory address
-     * @return The signatory address
-     */
-    function getSignatory() external view returns (address) {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        return $.signatory;
-    }
-
-    /**
-     * @notice Check if a nonce has been used
-     * @param nonce The nonce to check
-     * @return True if the nonce has been used
-     */
-    function isNonceUsed(uint256 nonce) external view returns (bool) {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        return $.nonces[nonce];
-    }
-
-    /**
-     * @notice Gasless send function following MintController pattern
-     * @param input The send input parameters
-     * @param amount The amount to send
-     * @param nonce Unique identifier for this operation
-     * @param expireSignatureAt Expiration timestamp for the signature
-     * @param signature The signature for this operation
-     */
-    function gaslessSend(
-        SendTokensInput calldata input,
-        uint256 amount,
-        uint256 nonce,
-        uint64 expireSignatureAt,
-        bytes calldata signature
-    ) external {
-        _validateGaslessSendParams(nonce, expireSignatureAt);
-        address sender = _msgSender();
-        _verifyGaslessSendSignature(input, amount, nonce, expireSignatureAt, sender, signature);
-        _executeGaslessSend(input, amount, nonce, sender);
-    }
-
-    /**
-     * @notice Validate gasless send parameters
-     */
-    function _validateGaslessSendParams(uint256 nonce, uint64 expireSignatureAt) private view {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        if ($.nonces[nonce]) revert NonceAlreadyUsed(nonce);
-        if (expireSignatureAt < block.timestamp) revert ExpiredSignature();
-    }
-
-    /**
-     * @notice Verify gasless send signature
-     */
-    function _verifyGaslessSendSignature(
-        SendTokensInput calldata input,
-        uint256 amount,
-        uint256 nonce,
-        uint64 expireSignatureAt,
-        address sender,
-        bytes calldata signature
-    ) private view {
-        bytes memory encodedData = _encodeGaslessSendData(input, amount, nonce, expireSignatureAt, sender);
-        _checkSignature(encodedData, signature);
-    }
-
-    /**
-     * @notice Encode gasless send data for signature verification
-     */
-    function _encodeGaslessSendData(
-        SendTokensInput calldata input,
-        uint256 amount,
-        uint256 nonce,
-        uint64 expireSignatureAt,
-        address sender
-    ) private view returns (bytes memory) {
-        return abi.encode(
-            input.destinationBlockchainID,
-            input.destinationTokenTransferrerAddress,
-            input.recipient,
-            input.primaryFeeTokenAddress,
-            input.primaryFee,
-            input.secondaryFee,
-            input.requiredGasLimit,
-            input.multiHopFallback,
-            amount,
-            nonce,
-            sender,
-            address(this),
-            expireSignatureAt
-        );
-    }
-
-    /**
-     * @notice Execute gasless send operation
-     */
-    function _executeGaslessSend(
-        SendTokensInput calldata input,
-        uint256 amount,
-        uint256 nonce,
-        address sender
-    ) private {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        $.nonces[nonce] = true;
-        _send(input, amount);
-        
-        emit GaslessSendExecuted(
-            sender,
-            input.destinationBlockchainID,
-            input.destinationTokenTransferrerAddress,
-            amount,
-            nonce,
-            ""
-        );
-    }
-
-    /**
-     * @notice Validate signature
-     * @param _param The encoded parameters
-     * @param signature The signature to validate
-     */
-    function _checkSignature(bytes memory _param, bytes memory signature) private view {
-        ERC20TokenRemoteStorage storage $ = _getERC20TokenRemoteStorage();
-        bytes32 messageHash = keccak256(_param);
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
-        address signer = ECDSA.recover(ethSignedMessageHash, signature);
-        if (signer != $.signatory) {
-            revert WrongSignature();
-        }
-    }
-
-    /**
-     * @notice Override _msgSender to support OpenGSN meta-transactions
-     */
-    function _msgSender() internal view override(ContextUpgradeable, ERC2771Recipient) returns (address sender) {
-        sender = ERC2771Recipient._msgSender();
-    }
-
-    /**
-     * @notice Override _msgData to support OpenGSN meta-transactions
-     */
-    function _msgData() internal view override(ContextUpgradeable, ERC2771Recipient) returns (bytes calldata) {
+    function _msgData() internal view virtual override(ContextUpgradeable, ERC2771Recipient) returns (bytes calldata) {
         return ERC2771Recipient._msgData();
     }
 }

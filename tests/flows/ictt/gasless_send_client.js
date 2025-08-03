@@ -10,7 +10,7 @@ function toHex(value) {
 
 /**
  * Gasless Send Client
- * Tests the gasless send functionality of ERC20Remote following MintController pattern
+ * Tests the gasless send functionality of ERC20Remote following the TypeScript example pattern
  */
 class GaslessSendClient {
     constructor(config) {
@@ -26,9 +26,16 @@ class GaslessSendClient {
             auth: {
                 username: 'innovomark_testnet',
                 password: 'PVY8wZa10O9nrP3mfB'
-            },
-            suffix: 'EMYIVHVJOTQUBEJLHAJCZLQ'
+            }
         };
+
+        // EIP-712 configuration
+        this.domainName = 'innovomark';
+        this.domainVersion = '1';
+        this.requestType = 'Message';
+        this.suffixType = 'bytes32';
+        this.suffixName = 'EMYIVHVJOTQUBEJLHAJCZLQ';
+        this.requestSuffix = `${this.suffixType} ${this.suffixName})`;
     }
 
     /**
@@ -118,14 +125,63 @@ class GaslessSendClient {
     }
 
     /**
-     * Test 2: Gasless send from Remote to Home (following EIP-712 pattern with AvaCloud forwarder)
+     * Get EIP-712 message following the TypeScript example pattern
+     */
+    getEIP712Message(data, from, to, gas, nonce, chainId) {
+        const types = {
+            EIP712Domain: [
+                { name: "name", type: "string" },
+                { name: "version", type: "string" },
+                { name: "chainId", type: "uint256" },
+                { name: "verifyingContract", type: "address" },
+            ],
+            [this.requestType]: [
+                { name: "from", type: "address" },
+                { name: "to", type: "address" },
+                { name: "value", type: "uint256" },
+                { name: "gas", type: "uint256" },
+                { name: "nonce", type: "uint256" },
+                { name: "data", type: "bytes" },
+                { name: "validUntilTime", type: "uint256" },
+                { name: this.suffixName, type: this.suffixType },
+            ],
+        };
+
+        const message = {
+            from: from,
+            to: to,
+            value: "0x0",
+            gas: ethers.toBeHex(gas),
+            nonce: ethers.toBeHex(nonce),
+            data: data,
+            validUntilTime: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            [this.suffixName]: Buffer.from(this.requestSuffix, "utf8"),
+        };
+
+        const result = {
+            domain: {
+                name: this.domainName,
+                version: this.domainVersion,
+                chainId: chainId,
+                verifyingContract: this.config.gasless.forwarder,
+            },
+            types: types,
+            primaryType: this.requestType,
+            message: message,
+        };
+
+        return result;
+    }
+
+    /**
+     * Test 2: Gasless send from Remote to Home (following TypeScript example pattern)
      * @param {ethers.Wallet} wallet - User wallet
      * @param {Object} contracts - Contract instances
      * @param {string} recipient - Recipient address
      * @param {string} amount - Amount to transfer
      */
     async testGaslessSend(wallet, contracts, recipient, amount) {
-        console.log('\n=== Test 2: Remote to Home (Gasless transaction - EIP-712) ===');
+        console.log('\n=== Test 2: Remote to Home (Gasless transaction - TypeScript pattern) ===');
         
         const { erc20Remote } = contracts;
 
@@ -143,17 +199,41 @@ class GaslessSendClient {
         );
         const approveNonce = await approveForwarder.getNonce(wallet.address);
         
+        // Get network info
+        const network = await this.remoteProvider.getNetwork();
+        
+        // Estimate gas for approval
+        const approveGas = await erc20Remote.approve.estimateGas(this.config.contracts.erc20Remote.contractAddress, amount);
+        console.log(`Estimated gas usage for approve(): ${approveGas}`);
+        
         // Create EIP-712 structured data for approval
-        const approveEip712Message = this.createEIP712Struct({
-            nonce: approveNonce.toString(),
-            from: wallet.address,
-            to: this.config.contracts.erc20Remote.contractAddress,
-            data: approveFunctionData,
-            forwarderAddress: this.config.gasless.forwarder,
-            requestSuffix: 'EMYIVHVJOTQUBEJLHAJCZLQ',
-            chainId: 54414, // Innovomark subnet chain ID
-            gas: '0xf4240' // 1000000 gas
-        });
+        console.log('Creating EIP-712 message with parameters:');
+        console.log(`  Data: ${approveFunctionData}`);
+        console.log(`  From: ${wallet.address}`);
+        console.log(`  To: ${this.config.contracts.erc20Remote.contractAddress}`);
+        console.log(`  Gas: ${approveGas}`);
+        console.log(`  Nonce: ${approveNonce}`);
+        console.log(`  ChainId: ${network.chainId}`);
+        
+        // Create EIP-712 structured data for approval
+        const approveEip712Message = this.getEIP712Message(
+            approveFunctionData,
+            wallet.address,
+            this.config.contracts.erc20Remote.contractAddress,
+            approveGas,
+            approveNonce,
+            network.chainId
+        );
+        
+        console.log('✓ EIP-712 message created successfully');
+        
+        if (!approveEip712Message) {
+            throw new Error('EIP-712 message creation failed - returned undefined');
+        }
+        
+        if (!approveEip712Message.message) {
+            throw new Error('EIP-712 message missing message property');
+        }
         
         console.log(`✓ Created EIP-712 structured data for approval`);
         console.log(`  Nonce: ${approveNonce}`);
@@ -162,17 +242,29 @@ class GaslessSendClient {
         console.log(`  Data: ${approveFunctionData}`);
         
         // Sign the approval EIP-712 message
-        const approveDataToSign = this.createDataToSign(approveEip712Message);
+        const { EIP712Domain, ...types } = approveEip712Message.types;
         const approveSignature = await wallet.signTypedData(
-            approveDataToSign.domain,
-            { Message: approveDataToSign.types.Message },
-            approveDataToSign.message
+            approveEip712Message.domain,
+            types,
+            approveEip712Message.message
         );
         
         console.log(`✓ Signed approval EIP-712 message`);
         console.log(`  Signature: ${approveSignature}`);
         
-        // Submit approval to relayer (AvaCloud)
+        // Verify signature
+        const verifiedAddress = ethers.verifyTypedData(
+            approveEip712Message.domain,
+            types,
+            approveEip712Message.message,
+            approveSignature
+        );
+        
+        if (verifiedAddress !== wallet.address) {
+            throw new Error("Failed to sign and recover approval signature");
+        }
+        
+        // Submit approval to relayer
         const approveRelayerRequest = this.prepareForSend({
             eip712Message: approveEip712Message,
             signData: approveSignature
@@ -186,6 +278,48 @@ class GaslessSendClient {
         console.log('Waiting for approval transaction to be processed...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         
+        // Check allowance after approval
+        console.log('Checking allowance after approval...');
+        let allowance = await erc20Remote.allowance(wallet.address, this.config.contracts.erc20Remote.contractAddress);
+        console.log(`Allowance: ${ethers.formatUnits(allowance, 6)} USDC`);
+        
+        if (allowance < amount) {
+            console.log('Gasless approval failed or not processed. Attempting regular (user-paid) approval...');
+            console.log(`Approving ${ethers.formatUnits(amount, 6)} USDC from ${wallet.address} to ${this.config.contracts.erc20Remote.contractAddress}`);
+            try {
+                const approveTx = await erc20Remote.approve(this.config.contracts.erc20Remote.contractAddress, amount);
+                await approveTx.wait();
+                console.log(`✓ Regular approval transaction sent. Hash: ${approveTx.hash}`);
+                
+                // Add a small delay to ensure the transaction is processed
+                console.log('Waiting for approval transaction to be processed...');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+            } catch (error) {
+                console.error('Regular approval failed:', error.message);
+                if (error.data) {
+                    console.error('Error data:', error.data);
+                }
+                throw error;
+            }
+            console.log(`Checking allowance from ${wallet.address} to ${this.config.contracts.erc20Remote.contractAddress}`);
+            allowance = await erc20Remote.allowance(wallet.address, this.config.contracts.erc20Remote.contractAddress);
+            console.log(`Allowance after regular approval: ${ethers.formatUnits(allowance, 6)} USDC`);
+        }
+        
+        if (allowance < amount) {
+            throw new Error(`Insufficient allowance. Required: ${ethers.formatUnits(amount, 6)}, Got: ${ethers.formatUnits(allowance, 6)}`);
+        }
+        
+        // Check balance before send
+        console.log('Checking balance before send...');
+        const balance = await erc20Remote.balanceOf(wallet.address);
+        console.log(`Balance: ${ethers.formatUnits(balance, 6)} USDC`);
+        
+        if (balance < amount) {
+            throw new Error(`Insufficient balance. Required: ${ethers.formatUnits(amount, 6)}, Got: ${ethers.formatUnits(balance, 6)}`);
+        }
+        
         // Step 2: Create the send input
         const sendInput = {
             destinationBlockchainID: this.config.network.home.blockchainId,
@@ -198,13 +332,10 @@ class GaslessSendClient {
             multiHopFallback: ethers.ZeroAddress
         };
 
-        // Step 3: Create EIP-712 structured data for forwarder
+        // Step 3: Create EIP-712 structured data for gasless send
         console.log('Step 3: Creating EIP-712 structured data for gasless send...');
         
-        // Encode the function call data
-        const functionData = erc20Remote.interface.encodeFunctionData('send', [sendInput, amount]);
-        
-        // Get nonce from forwarder
+        // Get nonce from forwarder first
         const forwarder = new ethers.Contract(
             this.config.gasless.forwarder,
             ['function getNonce(address from) view returns (uint256)'],
@@ -212,17 +343,25 @@ class GaslessSendClient {
         );
         const nonce = await forwarder.getNonce(wallet.address);
         
+        // Encode the function call data for send
+        const functionData = erc20Remote.interface.encodeFunctionData('send', [
+            sendInput, 
+            amount
+        ]);
+        
+        // Estimate gas for send
+        const sendGas = await erc20Remote.send.estimateGas(sendInput, amount);
+        console.log(`Estimated gas usage for send(): ${sendGas}`);
+        
         // Create EIP-712 structured data
-        const eip712Message = this.createEIP712Struct({
-            nonce: nonce.toString(),
-            from: wallet.address,
-            to: this.config.contracts.erc20Remote.contractAddress,
-            data: functionData,
-            forwarderAddress: this.config.gasless.forwarder,
-            requestSuffix: 'EMYIVHVJOTQUBEJLHAJCZLQ',
-            chainId: 54414, // Innovomark subnet chain ID
-            gas: '0xf4240' // 1000000 gas
-        });
+        const eip712Message = this.getEIP712Message(
+            functionData,
+            wallet.address,
+            this.config.contracts.erc20Remote.contractAddress,
+            sendGas,
+            nonce,
+            network.chainId
+        );
         
         console.log(`✓ Created EIP-712 structured data`);
         console.log(`  Nonce: ${nonce}`);
@@ -233,18 +372,38 @@ class GaslessSendClient {
         // Step 4: Sign the EIP-712 message
         console.log('Step 4: Signing EIP-712 message...');
         
-        const dataToSign = this.createDataToSign(eip712Message);
         const signature = await wallet.signTypedData(
-            dataToSign.domain,
-            { Message: dataToSign.types.Message },
-            dataToSign.message
+            eip712Message.domain,
+            { [this.requestType]: eip712Message.types[this.requestType] },
+            eip712Message.message
         );
         
         console.log(`✓ Signed EIP-712 message`);
         console.log(`  Signature: ${signature}`);
 
-        // Step 5: Submit to relayer (AvaCloud)
+        // Verify signature
+        const verifiedSendAddress = ethers.verifyTypedData(
+            eip712Message.domain,
+            { [this.requestType]: eip712Message.types[this.requestType] },
+            eip712Message.message,
+            signature
+        );
+        
+        if (verifiedSendAddress !== wallet.address) {
+            throw new Error("Failed to sign and recover send signature");
+        }
+
+        // Step 5: Submit to relayer
         console.log('Step 5: Submitting to AvaCloud relayer...');
+        
+        // Debug: Check allowance and balance right before send
+        console.log('Debug: Final checks before gasless send...');
+        const finalAllowance = await erc20Remote.allowance(wallet.address, this.config.contracts.erc20Remote.contractAddress);
+        const finalBalance = await erc20Remote.balanceOf(wallet.address);
+        console.log(`Final allowance: ${ethers.formatUnits(finalAllowance, 6)} USDC`);
+        console.log(`Final balance: ${ethers.formatUnits(finalBalance, 6)} USDC`);
+        console.log(`Required amount: ${ethers.formatUnits(amount, 6)} USDC`);
+        console.log('Send input parameters:', JSON.stringify(sendInput, null, 2));
         
         const relayerRequest = this.prepareForSend({
             eip712Message,
@@ -265,102 +424,43 @@ class GaslessSendClient {
     }
 
     /**
-     * Create EIP-712 structured data for forwarder
-     */
-    createEIP712Struct({
-        nonce,
-        from,
-        to,
-        data,
-        forwarderAddress,
-        requestSuffix,
-        chainId = 54414,
-        gas = '0xf4240',
-        domainName = 'innovomark',
-        domainVersion = '1'
-    }) {
-        return {
-            primaryType: 'Message',
-            domain: {
-                name: domainName,
-                version: domainVersion,
-                chainId,
-                verifyingContract: forwarderAddress
-            },
-            types: {
-                Message: [
-                    { name: 'from', type: 'address' },
-                    { name: 'to', type: 'address' },
-                    { name: 'value', type: 'uint256' },
-                    { name: 'gas', type: 'uint256' },
-                    { name: 'nonce', type: 'uint256' },
-                    { name: 'data', type: 'bytes' },
-                    { name: 'validUntilTime', type: 'uint256' },
-                    { name: requestSuffix, type: 'bytes32' }
-                ],
-                EIP712Domain: [
-                    { name: 'name', type: 'string' },
-                    { name: 'version', type: 'string' },
-                    { name: 'chainId', type: 'uint256' },
-                    { name: 'verifyingContract', type: 'address' }
-                ]
-            },
-            message: {
-                data,
-                from,
-                gas,
-                nonce,
-                to,
-                validUntilTime: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-                value: '0x0',
-                [requestSuffix]: toHex(`bytes32 ${requestSuffix})`)
-            }
-        };
-    }
-
-    /**
-     * Prepare relayer request
+     * Prepare relayer request following backend implementation pattern
      */
     prepareForSend({ eip712Message, signData }) {
+        // Backend expects: { message, domain, types, primaryType, sign }
         return {
-            domain: eip712Message.domain,
-            types: eip712Message.types.Message,
-            primaryType: eip712Message.primaryType,
             message: eip712Message.message,
+            domain: eip712Message.domain,
+            types: eip712Message.types[eip712Message.primaryType], // Just the message types, not including EIP712Domain
+            primaryType: eip712Message.primaryType,
             sign: signData
         };
     }
 
     /**
-     * Create data to sign
-     */
-    createDataToSign(messageEIP712) {
-        return {
-            domain: messageEIP712.domain,
-            types: messageEIP712.types,
-            primaryType: messageEIP712.primaryType,
-            message: messageEIP712.message
-        };
-    }
-
-    /**
-     * Send transaction to AvaCloud relayer
+     * Send transaction to AvaCloud relayer (aligned with backend implementation)
      */
     async sendRelayerTx(data, expectedAddress) {
         try {
             console.log(`Sending to relayer - From: ${data.message.from}, Nonce: ${data.message.nonce}`);
             
-            const { message, domain, types, primaryType, sign } = data;
+            // Verify signature locally first (like backend does)
+            const messageForVerification = {
+                from: data.message.from,
+                to: data.message.to,
+                value: data.message.value,
+                gas: typeof data.message.gas === 'bigint' ? ethers.toBeHex(data.message.gas) : data.message.gas,
+                nonce: typeof data.message.nonce === 'bigint' ? ethers.toBeHex(data.message.nonce) : data.message.nonce,
+                data: data.message.data,
+                validUntilTime: data.message.validUntilTime,
+                [this.suffixName]: ethers.hexlify(ethers.toUtf8Bytes(`bytes32 ${this.suffixName})`))
+            };
             
-            // Verify the signature
             const actualAddress = ethers.verifyTypedData(
-                domain,
-                { [primaryType]: types },
-                {
-                    ...message,
-                    [this.relayerConfig.suffix]: toHex(`bytes32 ${this.relayerConfig.suffix})`),
-                },
-                sign
+                data.domain,
+                { [data.primaryType]: data.types },
+                messageForVerification,
+                data.sign
             );
             
             console.log(`Expected Address: ${expectedAddress}, Actual Address: ${actualAddress}`);
@@ -369,34 +469,54 @@ class GaslessSendClient {
                 throw new Error('Incorrect user public address recovered');
             }
             
-            // Prepare payload for relayer
+            // Prepare payload like backend does
+            // Convert message with proper serialization for BigInt values
+            const messageForPayload = {
+                from: data.message.from,
+                to: data.message.to,
+                value: data.message.value,
+                gas: typeof data.message.gas === 'bigint' ? ethers.toBeHex(data.message.gas) : data.message.gas,
+                nonce: typeof data.message.nonce === 'bigint' ? ethers.toBeHex(data.message.nonce) : data.message.nonce,
+                data: data.message.data,
+                validUntilTime: data.message.validUntilTime,
+                [this.suffixName]: ethers.hexlify(ethers.toUtf8Bytes(`bytes32 ${this.suffixName})`))
+            };
+            
+            // Debug the objects before JSON.stringify
+            console.log('Debug - data.domain:', data.domain);
+            console.log('Debug - data.domain.chainId type:', typeof data.domain.chainId);
+            console.log('Debug - messageForPayload:', messageForPayload);
+            
+            const forwardRequestObj = {
+                forwardRequest: {
+                    primaryType: data.primaryType,
+                    domain: {
+                        ...data.domain,
+                        chainId: typeof data.domain.chainId === 'bigint' ? Number(data.domain.chainId) : data.domain.chainId
+                    },
+                    types: { [data.primaryType]: data.types },
+                    message: messageForPayload,
+                },
+                metadata: {
+                    signature: data.sign.substring(2),
+                },
+            };
+            
+            console.log('Debug - About to stringify forwardRequestObj');
             const payload = `0x${Buffer.from(
-                JSON.stringify({
-                    forwardRequest: {
-                        primaryType,
-                        domain,
-                        types: { [primaryType]: types },
-                        message: {
-                            ...message,
-                            [this.relayerConfig.suffix]: toHex(`bytes32 ${this.relayerConfig.suffix})`),
-                        },
-                    },
-                    metadata: {
-                        signature: sign.substring(2),
-                    },
-                })
+                JSON.stringify(forwardRequestObj)
             ).toString('hex')}`;
             
-            const body = {
+            const requestBody = {
                 id: 1,
-                jsonrpc: '2.0',
-                method: 'eth_sendRawTransaction',
+                jsonrpc: "2.0",
+                method: "eth_sendRawTransaction",
                 params: [payload],
             };
             
             console.log(`Sending to relayer URL: ${this.relayerConfig.url}`);
             
-            const response = await axios.post(this.relayerConfig.url, body, {
+            const response = await axios.post(this.relayerConfig.url, requestBody, {
                 auth: this.relayerConfig.auth,
                 headers: {
                     'Content-Type': 'application/json'
@@ -406,13 +526,18 @@ class GaslessSendClient {
             console.log(`Relayer response: ${JSON.stringify(response.data)}`);
             
             if (response.status !== 200) {
-                throw new Error(`Relayer error: ${response.statusText}`);
+                console.error(`Relayer error details: ${JSON.stringify(response.data, null, 2)}`);
+                throw new Error(`Relayer error: ${response.statusText} - ${JSON.stringify(response.data)}`);
             }
             
             return response.data;
             
         } catch (error) {
             console.error('Relayer error:', error.message);
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+            }
             throw error;
         }
     }
@@ -469,8 +594,8 @@ class GaslessSendClient {
     getERC20RemoteABI() {
         return [
             'function send(tuple(bytes32 destinationBlockchainID, address destinationTokenTransferrerAddress, address recipient, address primaryFeeTokenAddress, uint256 primaryFee, uint256 secondaryFee, uint256 requiredGasLimit, address multiHopFallback) input, uint256 amount)',
-            'function gaslessSend(tuple(bytes32 destinationBlockchainID, address destinationTokenTransferrerAddress, address recipient, address primaryFeeTokenAddress, uint256 primaryFee, uint256 secondaryFee, uint256 requiredGasLimit, address multiHopFallback) input, uint256 amount, uint256 nonce, uint64 expireSignatureAt, bytes calldata signature)',
             'function approve(address spender, uint256 amount) returns (bool)',
+            'function allowance(address owner, address spender) view returns (uint256)',
             'function balanceOf(address account) view returns (uint256)',
             'function getSignatory() view returns (address)',
             'function isNonceUsed(uint256 nonce) view returns (bool)'
@@ -555,7 +680,7 @@ async function runGaslessSendTests(recipientPrivateKey = null) {
         
         // Wait for cross-chain message processing
         console.log('\nWaiting for cross-chain message processing (15 seconds)...');
-        await new Promise(resolve => setTimeout(resolve, 15000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
         
         // Test 2: Remote to Home (Gasless transaction)
         console.log('\n--- Test 2: Remote to Home (Gasless transaction) ---');
@@ -590,7 +715,7 @@ async function runGaslessSendTests(recipientPrivateKey = null) {
         
         console.log(`✓ Tokens arrived for recipient! Balance: ${ethers.formatUnits(recipientBalance, 6)} USDC`);
         
-        // Test gasless send (EIP-712 pattern with AvaCloud forwarder)
+        // Test gasless send (TypeScript pattern)
         // Use the recipient wallet for gasless send since it has the tokens
         const recipientWallet = client.importWallet(recipientPrivateKeyForGasless, 'remote');
         console.log(`Recipient wallet address: ${recipientWallet.address}`);

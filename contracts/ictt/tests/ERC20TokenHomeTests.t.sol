@@ -38,7 +38,8 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
             MOCK_TELEPORTER_MESSENGER_ADDRESS,
             1,
             address(mockERC20),
-            tokenHomeDecimals
+            tokenHomeDecimals,
+            address(0) // forwarder address for testing
         );
         erc20TokenTransferrer = app;
         tokenHome = app;
@@ -56,7 +57,8 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
             address(this),
             1,
             address(mockERC20),
-            tokenHomeDecimals
+            tokenHomeDecimals,
+            address(0) // forwarder address for testing
         );
         assertEq(app.getBlockchainID(), DEFAULT_TOKEN_HOME_BLOCKCHAIN_ID);
     }
@@ -69,7 +71,8 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
             address(this),
             1,
             address(mockERC20),
-            tokenHomeDecimals
+            tokenHomeDecimals,
+            address(0) // forwarder address for testing
         );
     }
 
@@ -314,7 +317,7 @@ contract ERC20TokenHomeTest is ERC20TokenTransferrerTest, TokenHomeTest {
         app = new ERC20TokenHomeUpgradeable(ICMInitializable.Allowed);
         vm.expectRevert(expectedErrorMessage);
         app.initialize(
-            teleporterRegistryAddress, teleporterManagerAddress, 1, feeTokenAddress, tokenDecimals
+            teleporterRegistryAddress, teleporterManagerAddress, 1, feeTokenAddress, tokenDecimals, address(0)
         );
     }
 }

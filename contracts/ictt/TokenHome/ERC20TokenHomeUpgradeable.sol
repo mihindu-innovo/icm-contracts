@@ -18,6 +18,8 @@ import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
+import "@opengsn/contracts/src/ERC2771Recipient.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
 /**
  * @title ERC20TokenHomeUpgradeable
@@ -25,7 +27,7 @@ import {ICMInitializable} from "@utilities/ICMInitializable.sol";
  * TokenRemote instances on other chains.
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
-contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome {
+contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome, ERC2771Recipient {
     using SafeERC20 for IERC20;
 
     // solhint-disable private-vars-leading-underscore
@@ -73,20 +75,23 @@ contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome {
      * @param minTeleporterVersion Minimum Teleporter version supported by this contract.
      * @param tokenAddress The ERC20 token contract address to be transferred by the home.
      * @param tokenDecimals The number of decimals for the ERC20 token
+     * @param forwarder The trusted forwarder address for gasless transactions
      */
     function initialize(
         address teleporterRegistryAddress,
         address teleporterManager,
         uint256 minTeleporterVersion,
         address tokenAddress,
-        uint8 tokenDecimals
+        uint8 tokenDecimals,
+        address forwarder
     ) public initializer {
         __ERC20TokenHome_init(
             teleporterRegistryAddress,
             teleporterManager,
             minTeleporterVersion,
             tokenAddress,
-            tokenDecimals
+            tokenDecimals,
+            forwarder
         );
     }
 
@@ -96,7 +101,8 @@ contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome {
         address teleporterManager,
         uint256 minTeleporterVersion,
         address tokenAddress,
-        uint8 tokenDecimals
+        uint8 tokenDecimals,
+        address forwarder
     ) internal onlyInitializing {
         __TokenHome_init(
             teleporterRegistryAddress,
@@ -105,14 +111,16 @@ contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome {
             tokenAddress,
             tokenDecimals
         );
-        __ERC20TokenHome_init_unchained(tokenAddress);
+        __ERC20TokenHome_init_unchained(tokenAddress, forwarder);
     }
 
     // solhint-disable-next-line func-name-mixedcase
     function __ERC20TokenHome_init_unchained(
-        address tokenAddress
+        address tokenAddress,
+        address forwarder
     ) internal onlyInitializing {
         _getERC20TokenHomeStorage()._token = IERC20(tokenAddress);
+        _setTrustedForwarder(forwarder);
     }
     // solhint-enable ordering
 
@@ -217,5 +225,19 @@ contract ERC20TokenHomeUpgradeable is IERC20TokenHome, TokenHome {
         if (remainingAllowance > 0) {
             token.safeTransfer(message.fallbackRecipient, remainingAllowance);
         }
+    }
+
+    /**
+     * @dev Override _msgSender to use ERC2771Recipient implementation
+     */
+    function _msgSender() internal view virtual override(ContextUpgradeable, ERC2771Recipient) returns (address) {
+        return ERC2771Recipient._msgSender();
+    }
+
+    /**
+     * @dev Override _msgData to use ERC2771Recipient implementation
+     */
+    function _msgData() internal view virtual override(ContextUpgradeable, ERC2771Recipient) returns (bytes calldata) {
+        return ERC2771Recipient._msgData();
     }
 }

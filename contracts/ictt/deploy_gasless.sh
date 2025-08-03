@@ -111,7 +111,8 @@ deploy_erc20_home() {
         \"$MNG\" \
         \"1\" \
         \"$ERC20_TOKEN_ADDRESS\" \
-        \"6\""
+        \"6\" \
+        \"$AVACLOUD_FORWARDER\""
     
     local output
     output=$(eval "$command")
@@ -148,7 +149,8 @@ deploy_erc20_remote() {
         \"($REG_REMOTE,$MNG,1,$BLOCKCHAIN_ID_HOME,$ERC20_HOME_ADDRESS,6)\" \
         \"MIHI Token\" \
         \"MIHIT\" \
-        \"6\""
+        \"6\" \
+        \"$AVACLOUD_FORWARDER\""
     
     local output
     output=$(eval "$command")
@@ -169,21 +171,7 @@ deploy_erc20_remote() {
     ERC20_REMOTE_ADDRESS="$contract_address"
     ERC20_REMOTE_TX_HASH="$tx_hash"
     
-    # Set the signatory (for gasless operations)
-    log "Setting signatory for gasless operations..."
-    local signatory_command="cast send --rpc-url $RPC_URL_REMOTE --private-key $PRIVATE_KEY \
-        $contract_address \
-        'setSignatory(address)' \
-        \"$MNG\""
-    
-    eval "$signatory_command" > /dev/null 2>&1
-    
-    if [[ $? -ne 0 ]]; then
-        error "Failed to set signatory"
-        return 1
-    fi
-    
-    log "Signatory set successfully"
+    log "ERC20Remote deployment successful (ERC2771Recipient pattern)"
     return 0
 }
 
@@ -279,9 +267,9 @@ test_gasless_send() {
     
     log "Balance on remote chain: $balance_output"
     
-    # Test gasless send (this would require signature from the client)
-    log "Note: Gasless send requires client-side signature and relayer submission"
-    log "This test demonstrates the contract deployment and configuration"
+    # Test gasless send using ERC2771Recipient pattern
+    log "Note: Gasless send uses ERC2771Recipient pattern with AvaCloud forwarder"
+    log "The contract is now relayer compliant and supports gasless transactions"
     log "For actual gasless testing, use the gasless_send_client.js script"
     
     return 0

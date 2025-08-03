@@ -65,7 +65,8 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
             }),
             MOCK_TOKEN_NAME,
             MOCK_TOKEN_SYMBOL,
-            tokenDecimals
+            tokenDecimals,
+            address(0) // forwarder address for testing
         );
         assertEq(app.getBlockchainID(), DEFAULT_TOKEN_REMOTE_BLOCKCHAIN_ID);
     }
@@ -84,7 +85,8 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
             }),
             MOCK_TOKEN_NAME,
             MOCK_TOKEN_SYMBOL,
-            tokenDecimals
+            tokenDecimals,
+            address(0) // forwarder address for testing
         );
     }
 
@@ -218,7 +220,8 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
             }),
             MOCK_TOKEN_NAME,
             MOCK_TOKEN_SYMBOL,
-            tokenDecimals
+            tokenDecimals,
+            address(0) // forwarder address for testing
         );
         return instance;
     }
@@ -333,6 +336,6 @@ contract ERC20TokenRemoteTest is ERC20TokenTransferrerTest, TokenRemoteTest {
     ) private {
         app = new ERC20TokenRemoteUpgradeable(ICMInitializable.Allowed);
         vm.expectRevert(expectedErrorMessage);
-        app.initialize(settings, tokenName, tokenSymbol, tokenDecimals_);
+        app.initialize(settings, tokenName, tokenSymbol, tokenDecimals_, address(0));
     }
 }

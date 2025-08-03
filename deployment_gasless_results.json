@@ -1,6 +1,6 @@
 {
     "deployment": {
-        "timestamp": "2025-08-01T14:20:59Z",
+        "timestamp": "2025-08-03T22:29:23Z",
         "network": {
             "home": {
                 "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
@@ -13,11 +13,11 @@
         },
         "contracts": {
             "erc20Home": {
-                "contractAddress": "0x9f8d9D84366086F49D266E3aD7BbF93eea0cb514",
+                "contractAddress": "0x85d8Feec556ecF321067F522d6a7566Ec09d0E4c",
                 "transactionHash": ""
             },
             "erc20Remote": {
-                "contractAddress": "0x6419458Fa0E14037EbaFC6Ffb14f46a7dF295C1a",
+                "contractAddress": "0x01dFA420975085b4ADcfc18803Abc939CA017c8C",
                 "transactionHash": ""
             }
         },
