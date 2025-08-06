@@ -1,6 +1,6 @@
 {
     "deployment": {
-        "timestamp": "2025-08-04T03:58:24Z",
+        "timestamp": "2025-08-05T22:56:28Z",
         "network": {
             "home": {
                 "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
@@ -13,17 +13,18 @@
         },
         "contracts": {
             "erc20Home": {
-                "contractAddress": "0x85d8Feec556ecF321067F522d6a7566Ec09d0E4c",
-                "transactionHash": ""
+                "contractAddress": "0x0Dfdab51C919173b769Bd2896Ce8f6b5b32c6826",
+                "transactionHash": "0x3554ec6b62d3d4c11006129fe6f423d06993130f6d631eeec159ec6ede4a1b36"
             },
             "erc20Remote": {
-                "contractAddress": "0x01dFA420975085b4ADcfc18803Abc939CA017c8C",
-                "transactionHash": ""
+                "contractAddress": "0x4A197596C6F95667A80eE2E27971d025a1057acF",
+                "transactionHash": "0x194b79f4054b3018e06097181d52888817a7a26ff42d8f7d73e1522ca13308f1"
             }
         },
         "gasless": {
             "forwarder": "0xadb1cc52d50089a57c797685ea085e5cd2642c82",
             "signatory": "0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8"
-        }
+        },
+        "status": "completed"
     }
-} 
+}

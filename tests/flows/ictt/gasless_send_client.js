@@ -119,9 +119,16 @@ class GaslessSendClient {
         const sendTx = await erc20Home.send(sendInput, amount);
         const sendReceipt = await sendTx.wait();
         console.log(`✓ Sent ${ethers.formatUnits(amount, 6)} USDC from Home to Remote`);
-        console.log(`  Transaction hash: ${sendReceipt.transactionHash}`);
+        console.log(`  Transaction hash: ${sendTx.hash}`);
+        console.log(`  Block number: ${sendReceipt.blockNumber}`);
 
-        return sendReceipt;
+        return {
+            success: true,
+            approveTxHash: approveTx.hash,
+            approveBlockNumber: approveTx.blockNumber,
+            sendTxHash: sendTx.hash,
+            sendBlockNumber: sendReceipt.blockNumber
+        };
     }
 
     /**
@@ -482,11 +489,6 @@ class GaslessSendClient {
                 [this.suffixName]: ethers.hexlify(ethers.toUtf8Bytes(`bytes32 ${this.suffixName})`))
             };
             
-            // Debug the objects before JSON.stringify
-            console.log('Debug - data.domain:', data.domain);
-            console.log('Debug - data.domain.chainId type:', typeof data.domain.chainId);
-            console.log('Debug - messageForPayload:', messageForPayload);
-            
             const forwardRequestObj = {
                 forwardRequest: {
                     primaryType: data.primaryType,
@@ -501,8 +503,6 @@ class GaslessSendClient {
                     signature: data.sign.substring(2),
                 },
             };
-            
-            console.log('Debug - About to stringify forwardRequestObj');
             const payload = `0x${Buffer.from(
                 JSON.stringify(forwardRequestObj)
             ).toString('hex')}`;
@@ -578,9 +578,16 @@ class GaslessSendClient {
         const sendTx = await erc20Remote.send(sendInput, amount);
         const sendReceipt = await sendTx.wait();
         console.log(`✓ Sent ${ethers.formatUnits(amount, 6)} USDC from Remote to Home`);
-        console.log(`  Transaction hash: ${sendReceipt.transactionHash}`);
+        console.log(`  Transaction hash: ${sendTx.hash}`);
+        console.log(`  Block number: ${sendReceipt.blockNumber}`);
 
-        return sendReceipt;
+        return {
+            success: true,
+            approveTxHash: approveTx.hash,
+            approveBlockNumber: approveTx.blockNumber,
+            sendTxHash: sendTx.hash,
+            sendBlockNumber: sendReceipt.blockNumber
+        };
     }
 
     // ABI definitions
@@ -738,16 +745,41 @@ async function runGaslessSendTests(recipientPrivateKey = null) {
             amount
         );
         
-        console.log('\n=== Gasless Send Tests Completed Successfully ===');
-        console.log('Home to Remote transaction:', homeToRemoteReceipt.transactionHash);
-        console.log('Remote to Home (Gasless):', gaslessSendReceipt.transactionHash);
-        console.log('Remote to Home (Regular):', regularSendReceipt.transactionHash);
-        
-        return {
-            homeToRemote: homeToRemoteReceipt,
-            gaslessSend: gaslessSendReceipt,
-            regularSend: regularSendReceipt
+        // Create comprehensive test results
+        const testResults = {
+            timestamp: new Date().toISOString(),
+            testConfiguration: {
+                recipient: recipient,
+                amount: ethers.formatUnits(amount, 6),
+                homeContract: config.contracts.erc20Home.contractAddress,
+                remoteContract: config.contracts.erc20Remote.contractAddress,
+                forwarder: config.gasless.forwarder,
+                signatory: config.gasless.signatory
+            },
+            testResults: {
+                homeToRemote: homeToRemoteReceipt,
+                gaslessSend: gaslessSendReceipt,
+                regularSend: regularSendReceipt
+            },
+            summary: {
+                homeToRemoteTxHash: homeToRemoteReceipt?.sendTxHash || 'undefined',
+                gaslessSendTxHash: gaslessSendReceipt?.transactionHash || 'undefined',
+                regularSendTxHash: regularSendReceipt?.sendTxHash || 'undefined',
+                allTestsPassed: true
+            }
         };
+        
+        // Save results to JSON file
+        const resultsPath = path.join(__dirname, 'gasless_test_results.json');
+        fs.writeFileSync(resultsPath, JSON.stringify(testResults, null, 2));
+        
+        console.log('\n=== Gasless Send Tests Completed Successfully ===');
+        console.log('Home to Remote transaction:', testResults.summary.homeToRemoteTxHash);
+        console.log('Remote to Home (Gasless):', testResults.summary.gaslessSendTxHash);
+        console.log('Remote to Home (Regular):', testResults.summary.regularSendTxHash);
+        console.log(`\n📄 Test results saved to: ${resultsPath}`);
+        
+        return testResults;
         
     } catch (error) {
         console.error('Gasless send tests failed:', error);

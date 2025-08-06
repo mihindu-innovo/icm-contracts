@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-08-04T08:18:03.052Z",
+  "testConfiguration": {
+    "recipient": "0x2b8195B483Ce775641a13Fd884506D45994FF1FF",
+    "amount": "0.1",
+    "homeContract": "0x85d8Feec556ecF321067F522d6a7566Ec09d0E4c",
+    "remoteContract": "0x01dFA420975085b4ADcfc18803Abc939CA017c8C",
+    "forwarder": "0xadb1cc52d50089a57c797685ea085e5cd2642c82",
+    "signatory": "0xD5b7DE57f5a0c6674E81Db906ccC1dDEC56d38e8"
+  },
+  "testResults": {
+    "homeToRemote": {
+      "success": true,
+      "approveTxHash": "0x393398864d9d1264a985120e6801ac58c2c35203f11c39fd90969ae768bc3810",
+      "approveBlockNumber": null,
+      "sendTxHash": "0xa05feac4669cb5be779f5c3b4d249f1b4bc8208c55b7732906a386b69b258c07",
+      "sendBlockNumber": 44318596
+    },
+    "gaslessSend": {
+      "transactionHash": "0xba1d541f26d8fa9aa4ac9e976203d067517c5d143d1ae308e40dbebcd4575c3a",
+      "status": 1,
+      "gasUsed": "1000000"
+    },
+    "regularSend": {
+      "success": true,
+      "approveTxHash": "0x581dc37a16096d530452f61cd993205076383ca9d5a0678598468ea6a3fddd62",
+      "approveBlockNumber": null,
+      "sendTxHash": "0x972993af03647025df020ebcfe710cc9e452a4769ca2dee9253284658860f312",
+      "sendBlockNumber": 22234
+    }
+  },
+  "summary": {
+    "homeToRemoteTxHash": "0xa05feac4669cb5be779f5c3b4d249f1b4bc8208c55b7732906a386b69b258c07",
+    "gaslessSendTxHash": "0xba1d541f26d8fa9aa4ac9e976203d067517c5d143d1ae308e40dbebcd4575c3a",
+    "regularSendTxHash": "0x972993af03647025df020ebcfe710cc9e452a4769ca2dee9253284658860f312",
+    "allTestsPassed": true
+  }
+}
